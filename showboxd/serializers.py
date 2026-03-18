@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import (Users, Media, Movie, TVShow, Genre, Person, CastCrew, Review )
+from .models import (Booking, Users, Media, Movie, TVShow, Genre, Person, CastCrew, Review )
 
 class UserDTO(serializers.ModelSerializer):
     class Meta:
@@ -62,3 +62,8 @@ class PersonLiteDTO(serializers.ModelSerializer):
         model = Person
         fields = ['person_id', 'name', 'profile_image_url']
 
+class BookingDTO(serializers.Serializer):
+    class Meta:
+        model = Booking
+        fields = ['booking_id', 'user', 'showing', 'seats_booked', 'total_price','booking_time']
+        read_only_fields = ['total_price', 'booking_time']

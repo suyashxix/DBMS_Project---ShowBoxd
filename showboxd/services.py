@@ -1,8 +1,10 @@
-from django.core.exceptions import transaction, ObjectDoesNotExist
-from django.db import IntegrityError
-from .models import CastCrew, Users, Media, Review, Booking, Showing, Movie, TVShow, Season,Episode
+from django.db import transaction, IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from decimal import Decimal
-
+from .models import (
+    Media, Movie, TVShow, Season, Episode,
+    Review, CastCrew, Showing, Booking, Users
+)
 class MediaService:
     @staticmethod
     def get_all_media(media_type=None):
@@ -97,3 +99,7 @@ class BookingService:
             return True
         except Booking.DoesNotExist:
             return False
+
+    @staticmethod
+    def get_showtimes_for_movie(movie_id):
+        return Showing.objects.filter(media_id = movie_id).select_related('screen__cinema').order_by('show_date','show_time')
