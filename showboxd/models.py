@@ -200,6 +200,7 @@ class Booking(models.Model):
     seats_booked = models.IntegerField()
     total_price = models.DecimalField(max_digits = 10, decimal_places =2)
     booking_time = models.DateTimeField(auto_now_add = True)
+    booking_status = models.CharField(max_length = 20, default = 'confirmed')
     class Meta:
         db_table = 'booking'
 

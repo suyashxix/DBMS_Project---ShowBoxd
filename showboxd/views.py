@@ -1,5 +1,5 @@
 from django.shortcuts import render
-
+from .serializers import ShowingDTO
 # Create your views here.
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
@@ -21,10 +21,19 @@ def get_media_catalog(request):
 def get_media_details(request, media_id):
     data = MediaService.get_full_details(media_id)
     if not data:
-        return Response({"error": "Media not found"},404)
+        return Response({"error": "Media not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Check if extra_details exists before trying to serialize it
+    extra_data = None
+    if data['extra_details']:
+        if data['media'].media_type == 'tv_show':
+            extra_data = TVShowDTO(data['extra_details']).data
+        else:
+            extra_data = MovieDTO(data['extra_details']).data
+
     return Response({
         "details": MediaDTO(data['media']).data,
-        "extra": TVShowDTO(data['extra_details']).data if data['media'].media_type == 'tv_show' else MovieDTO(data['extra_details']).data,
+        "extra": extra_data,
         "cast": CastCrewDTO(data['cast'], many=True).data,
         "reviews": ReviewDTO(data['reviews'], many=True).data
     })
@@ -46,17 +55,17 @@ def submit_review(request):
 @api_view(['GET'])
 def get_movie_showtimes(request, movie_id):
     showings=BookingService.get_showtimes_for_movie(movie_id)
-    return Response(BookingDTO(showings, many=True).data)
+    return Response(ShowingDTO(showings, many=True).data)
 @api_view(['POST'])
 def create_ticket_booking(request):
     try:
-        booking= BookingService.create_booking(
-            user_id = request.data.get('user_id'),
+        booking = BookingService.create_booking(
+            user_id=request.data.get('user_id'),
             showing_id=request.data.get('showing_id'),
-            seats= request.data.get('seats_booked')
+            seats_requested=request.data.get('seats_booked') # <--- MUST match the Service parameter
         )
-        return Response(BookingDTO(booking).data, status=status.HTTP_201_CREATED)
-    except ValueError as e:
+        return Response({"status": "success"}, status=status.HTTP_201_CREATED)
+    except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 @api_view(['PATCH'])
 def cancel_ticket_booking(request, booking_id):
