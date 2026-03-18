@@ -29,8 +29,6 @@ class MediaService:
           - Query 2:  Browse by genre, sorted by rating DESC
           - Query 15: Partial title search (ILIKE)
         """
-
-        # ── Query 3: Top rated ──────────────────────────────────────────────
         if top_rated:
             sql = """
                 SELECT media_id, title, media_type, aggregate_rating,
@@ -52,8 +50,6 @@ class MediaService:
             with connection.cursor() as cursor:
                 cursor.execute(sql, params)
                 return dictfetchall(cursor)
-
-        # ── Query 2: Browse by genre ─────────────────────────────────────────
         if genre and not query:
             sql = """
                 SELECT m.media_id, m.title, m.media_type, m.aggregate_rating,
@@ -72,8 +68,6 @@ class MediaService:
             with connection.cursor() as cursor:
                 cursor.execute(sql, params)
                 return dictfetchall(cursor)
-
-        # ── Query 15: Title search (ILIKE) ───────────────────────────────────
         if query:
             sql = """
                 SELECT media_id, title, media_type, aggregate_rating,
@@ -98,8 +92,6 @@ class MediaService:
             with connection.cursor() as cursor:
                 cursor.execute(sql, params)
                 return dictfetchall(cursor)
-
-        # ── Default catalog (no filters) — return ORM queryset for serializer ─
         qs = Media.objects.all()
         if media_type:
             qs = qs.filter(media_type=media_type)
@@ -117,7 +109,7 @@ class MediaService:
 
             cast = CastCrew.objects.filter(media_id=media_id).select_related('person')
 
-            # ── Query 9: Reviews — verified users first, then by likes & date ─
+            #Reviews listed by verified users first, then by likes & date ─
             with connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT r.review_id, u.name, u.is_verified,
@@ -164,7 +156,7 @@ class TVMetadataService:
 class ReviewService:
     @staticmethod
     def post_review(user_id, media_id, rating, review_text):
-        # Query 10 — triggers fire to update aggregate_rating and total_reviews
+        #triggers fire to update aggregate_rating and total_reviews
         try:
             user = Users.objects.get(pk=user_id)
             review = Review.objects.create(
@@ -185,7 +177,7 @@ class BookingService:
     @staticmethod
     @transaction.atomic
     def create_booking(user_id, showing_id, seats_requested):
-        # Query 6 — trg_validate_booking_price fires BEFORE, trg_decrement_seats AFTER
+        # trg_validate_booking_price fires BEFORE, trg_decrement_seats AFTER
         try:
             showing          = Showing.objects.get(pk=showing_id)
             user             = Users.objects.get(pk=user_id)
@@ -207,7 +199,7 @@ class BookingService:
 
     @staticmethod
     def cancel_booking(booking_id):
-        # Query 8 — trigger fires to return seats to available_seats
+        #Triggers trg_increment_seats to add back the seats to showing
         try:
             booking = Booking.objects.get(pk=booking_id)
             if booking.booking_status == 'cancelled':
@@ -229,10 +221,10 @@ class BookingService:
                        sh.show_date, sh.show_time,
                        sh.available_seats, sh.price
                 FROM showing sh
-                JOIN screen sc  ON sh.screen_id  = sc.screen_id
-                JOIN cinema c   ON sc.cinema_id   = c.cinema_id
-                JOIN movie mo   ON sh.media_id    = mo.media_id
-                JOIN media m    ON mo.media_id     = m.media_id
+                JOIN screen sc  ON sh.screen_id= sc.screen_id
+                JOIN cinema c   ON sc.cinema_id= c.cinema_id
+                JOIN movie mo   ON sh.media_id = mo.media_id
+                JOIN media m    ON mo.media_id = m.media_id
                 WHERE mo.media_id = %s
                   AND sh.available_seats > 0
                 ORDER BY sh.show_date, sh.show_time
