@@ -2,18 +2,47 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import status
 from .serializers import (
-    MediaDTO, UserDTO, ReviewDTO, TVShowDTO,
-    CastCrewDTO, MovieDTO, BookingDetailDTO, ShowingDTO
+    MediaDTO, ReviewDTO, TVShowDTO,
+    CastCrewDTO, MovieDTO, GenreDTO
 )
-from .services import BookingService, MediaService, TVMetadataService, ReviewService
-from .models import Booking
+from .services import BookingService, MediaService, ReviewService
+
 
 @api_view(['GET'])
 def get_media_catalog(request):
     media_type = request.query_params.get('type')
     media_list = MediaService.get_all_media(media_type=media_type)
-    serializer = MediaDTO(media_list, many=True)
-    return Response(serializer.data)
+    return Response(MediaDTO(media_list, many=True).data)
+
+
+@api_view(['GET'])
+def search_media(request):
+    """
+    Query 15 (title ILIKE) + Query 2 (genre) + Query 3 (top rated).
+    GET /api/search/?q=inception&type=movie&genre=Thriller&top_rated=true
+    """
+    query      = request.query_params.get('q', '')
+    media_type = request.query_params.get('type', '')
+    genre      = request.query_params.get('genre', '')
+    top_rated  = request.query_params.get('top_rated', '').lower() == 'true'
+
+    results = MediaService.search_media(
+        query=query or None,
+        media_type=media_type or None,
+        genre=genre or None,
+        top_rated=top_rated,
+    )
+    # Raw SQL returns list of dicts; ORM fallback returns a queryset
+    if isinstance(results, list):
+        return Response(results)
+    return Response(MediaDTO(results, many=True).data)
+
+
+@api_view(['GET'])
+def get_genres(request):
+    genres = MediaService.get_all_genres()
+    return Response(GenreDTO(genres, many=True).data)
+
 
 @api_view(['GET'])
 def get_media_details(request, media_id):
@@ -32,8 +61,10 @@ def get_media_details(request, media_id):
         "details": MediaDTO(data['media']).data,
         "extra":   extra_data,
         "cast":    CastCrewDTO(data['cast'], many=True).data,
-        "reviews": ReviewDTO(data['reviews'], many=True).data,
+        # raw_reviews is already a list of dicts from Query 9 raw SQL
+        "reviews": data['raw_reviews'],
     })
+
 
 @api_view(['POST'])
 def submit_review(request):
@@ -48,24 +79,28 @@ def submit_review(request):
     except ValueError as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-# ── Booking endpoints ────────────────────────────────────────────────────────
+
+# ── Booking endpoints ──────────────────────────────────────────────────────
 
 @api_view(['GET'])
 def get_movie_showtimes(request, movie_id):
+    # Query 5 — raw SQL, returns list of dicts directly
     showings = BookingService.get_showtimes_for_movie(movie_id)
-    return Response(ShowingDTO(showings, many=True).data)
+    return Response(showings)
+
 
 @api_view(['POST'])
 def create_ticket_booking(request):
     try:
         BookingService.create_booking(
-            user_id        = request.data.get('user_id'),
-            showing_id     = request.data.get('showing_id'),
-            seats_requested= request.data.get('seats_booked'),
+            user_id         = request.data.get('user_id'),
+            showing_id      = request.data.get('showing_id'),
+            seats_requested = request.data.get('seats_booked'),
         )
         return Response({"status": "success"}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['PATCH'])
 def cancel_ticket_booking(request, booking_id):
@@ -74,16 +109,9 @@ def cancel_ticket_booking(request, booking_id):
         return Response({"message": "Booking cancelled successfully"})
     return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 @api_view(['GET'])
 def get_user_bookings(request, user_id):
-    """Return all bookings for a user, richly nested with showing + media info."""
-    bookings = (
-        Booking.objects
-        .filter(user_id=user_id)
-        .select_related(
-            'showing__screen__cinema',
-            'showing__media__media',      # Movie → Media
-        )
-        .order_by('-booking_time')
-    )
-    return Response(BookingDetailDTO(bookings, many=True).data)
+    # Query 7 — raw SQL, returns list of dicts directly
+    bookings = BookingService.get_user_bookings(user_id)
+    return Response(bookings)
