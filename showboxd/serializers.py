@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import (Booking, Screen, Showing, Users, Media, Movie, TVShow, Genre, Person, CastCrew, Review )
+from .models import (Booking, Showing, Screen, Users, Media, Movie, TVShow, Genre, Person, CastCrew, Review)
 
 class UserDTO(serializers.ModelSerializer):
     class Meta:
@@ -42,10 +42,9 @@ class CastCrewDTO(serializers.ModelSerializer):
 
 class ReviewDTO(serializers.ModelSerializer):
     user = UserDTO(read_only=True)
-    media = MediaDTO(read_only=True)
     class Meta:
         model = Review
-        fields = '__all__'
+        fields = ['review_id', 'rating', 'review_text', 'review_date', 'created_at', 'user']
 
 class UserLiteDTO(serializers.ModelSerializer):
     class Meta:
@@ -62,21 +61,34 @@ class PersonLiteDTO(serializers.ModelSerializer):
         model = Person
         fields = ['person_id', 'name', 'profile_image_url']
 
-class BookingDTO(serializers.ModelSerializer):
-    class Meta:
-        model = Booking
-        fields = ['booking_id', 'user', 'showing', 'seats_booked', 'total_price','booking_time']
-        read_only_fields = ['total_price', 'booking_time']
-
-
 class ScreenWithCinemaDTO(serializers.ModelSerializer):
-    cinema_name = serializers.CharField(source='cinema.name', read_only=True)
-    cinema_location = serializers.CharField(source='cinema.city', read_only=True)
+    cinema_name     = serializers.CharField(source='cinema.name',     read_only=True)
+    cinema_location = serializers.CharField(source='cinema.city',     read_only=True)
     class Meta:
-        model = Screen
+        model  = Screen
         fields = ['screen_name', 'screen_type', 'cinema_name', 'cinema_location']
+
 class ShowingDTO(serializers.ModelSerializer):
     screen = ScreenWithCinemaDTO(read_only=True)
     class Meta:
-        model = Showing
+        model  = Showing
         fields = ['showing_id', 'show_date', 'show_time', 'available_seats', 'price', 'screen']
+
+class BookingDTO(serializers.ModelSerializer):
+    class Meta:
+        model  = Booking
+        fields = ['booking_id', 'user', 'showing', 'seats_booked', 'total_price', 'booking_time']
+        read_only_fields = ['total_price', 'booking_time']
+
+class BookingDetailDTO(serializers.ModelSerializer):
+    """Rich booking serializer for the My Bookings page — nests showing → screen → cinema + media info."""
+    showing       = ShowingDTO(read_only=True)
+    media_id      = serializers.IntegerField(source='showing.media.media.media_id', read_only=True)
+    media_title   = serializers.CharField(source='showing.media.media.title',       read_only=True)
+    poster_url    = serializers.CharField(source='showing.media.media.poster_url',  read_only=True)
+    class Meta:
+        model  = Booking
+        fields = [
+            'booking_id', 'seats_booked', 'total_price', 'booking_time', 'booking_status',
+            'showing', 'media_id', 'media_title', 'poster_url',
+        ]
