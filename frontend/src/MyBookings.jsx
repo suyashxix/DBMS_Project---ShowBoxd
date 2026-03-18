@@ -90,8 +90,12 @@ const styles = `
   }
   .mb-badge-confirmed { background: #d4edda; color: #1a6b3c; }
   .mb-badge-cancelled { background: #f8d7da; color: #842029; }
-  .mb-price { font-size: 15px; font-weight: 500; color: #111; text-align: right; flex-shrink: 0; }
+  .mb-price { font-size: 15px; font-weight: 500; color: #111; text-align: right; }
   .mb-price-sub { font-size: 12px; color: #888; text-align: right; }
+  .mb-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .mb-cancel-btn { font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif; color: #842029; background: #f8d7da; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+  .mb-cancel-btn:hover { opacity: 0.8; }
+  .mb-cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .mb-empty {
     text-align: center;
@@ -104,15 +108,31 @@ const styles = `
 `;
 
 export default function MyBookings() {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [bookings,   setBookings]  = useState([]);
+  const [loading,    setLoading]   = useState(true);
+  const [cancelling, setCancelling]= useState(null); // booking_id being cancelled
 
-  useEffect(() => {
+  const fetchBookings = () => {
     axios.get(`${API}/api/user/${USER_ID}/bookings/`)
       .then(res => setBookings(res.data))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchBookings(); }, []);
+
+  const cancelBooking = async (bookingId) => {
+    if (!window.confirm('Cancel this booking?')) return;
+    setCancelling(bookingId);
+    try {
+      await axios.patch(`${API}/api/booking/${bookingId}/cancel/`);
+      fetchBookings();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to cancel booking');
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   // Group by media_id
   const groups = bookings.reduce((acc, b) => {
@@ -173,9 +193,20 @@ export default function MyBookings() {
                     {b.seats_booked} seat{b.seats_booked !== 1 ? 's' : ''} · Booked on {formatDate(b.booking_time)}
                   </div>
                 </div>
-                <div>
-                  <div className="mb-price">₹{Number(b.total_price).toLocaleString('en-IN')}</div>
-                  <div className="mb-price-sub">total</div>
+                <div className="mb-card-right">
+                  <div>
+                    <div className="mb-price">₹{Number(b.total_price).toLocaleString('en-IN')}</div>
+                    <div className="mb-price-sub">total</div>
+                  </div>
+                  {b.booking_status !== 'cancelled' && (
+                    <button
+                      className="mb-cancel-btn"
+                      disabled={cancelling === b.booking_id}
+                      onClick={() => cancelBooking(b.booking_id)}
+                    >
+                      {cancelling === b.booking_id ? 'Cancelling…' : 'Cancel'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
