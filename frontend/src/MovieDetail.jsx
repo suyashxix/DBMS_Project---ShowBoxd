@@ -91,24 +91,22 @@ function MovieDetail() {
   const [submitting,      setSubmitting]     = useState(false);
   const [booking,         setBooking]        = useState(false);
 
-  const fetchData = () => {
+  const fetchData = (preserveSelection = false) => {
     axios.get(`${API}/api/media/${id}/`).then(res => setData(res.data));
 
-    // Query 5 — raw SQL dict shape: { showing_id, cinema_name, cinema_location, screen_name, screen_type, show_date, show_time, available_seats, price }
     axios.get(`${API}/api/movie/showtimes/${id}/`).then(res => {
       setShowtimes(res.data);
-      if (res.data.length > 0 && res.data[0].showing_id) {
+      if (!preserveSelection && res.data.length > 0 && res.data[0].showing_id) {
         setSelectedShowing(String(res.data[0].showing_id));
       }
     });
 
-    // Query 7 — raw SQL dict shape: { booking_id, media_id, cinema_name, show_date, show_time, seats_booked, total_price, booking_status, ... }
     axios.get(`${API}/api/user/${USER_ID}/bookings/`)
       .then(res => setUserBookings(res.data))
       .catch(() => {});
   };
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => { fetchData(false); }, [id]);
 
   const movieBookings = userBookings.filter(
     b => String(b.media_id) === String(id) && b.booking_status !== 'cancelled'
@@ -123,7 +121,7 @@ function MovieDetail() {
       });
       setReviewText(''); setRating(8);
       alert('Review submitted!');
-      fetchData();
+      fetchData(true);
     } catch (err) {
       alert(err.response?.data?.error || 'Error submitting review');
     } finally { setSubmitting(false); }
@@ -143,7 +141,7 @@ function MovieDetail() {
         seats_booked: parseInt(seats),
       });
       alert('Booking confirmed!');
-      fetchData();
+      fetchData(true);
     } catch (err) {
       alert(err.response?.data?.error || 'Booking failed');
     } finally { setBooking(false); }

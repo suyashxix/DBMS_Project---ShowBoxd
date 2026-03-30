@@ -18,6 +18,10 @@ class MediaPlatform(models.Model):
     pk = models.CompositePrimaryKey('media', 'platform', 'region')
     class Meta:
         db_table = 'media_platform'
+        indexes = [
+            models.Index(fields=['region']),
+            models.Index(fields=['platform', 'region']),
+        ]
 
 class MediaSimilarity(models.Model):
     media_1 = models.ForeignKey('Media', on_delete = models.CASCADE, db_column = 'media_id_1', related_name='similarity_as_1')
@@ -26,6 +30,10 @@ class MediaSimilarity(models.Model):
     pk = models.CompositePrimaryKey('media_1', 'media_2')
     class Meta:
         db_table = 'media_similarity'
+        indexes = [
+            models.Index(fields=['media_1', '-similarity_score']),
+            models.Index(fields=['media_2', '-similarity_score']),
+        ]
 
 class ReviewLike(models.Model):
     review = models.ForeignKey('Review', on_delete = models.CASCADE, db_column = 'review_id')
@@ -34,6 +42,10 @@ class ReviewLike(models.Model):
     pk = models.CompositePrimaryKey('review', 'user')
     class Meta:
         db_table = 'review_like'
+        indexes =[
+            models.Index(fields=['review']),
+            models.Index(fields=['user']),
+        ]
 
 class WatchHistory(models.Model):
     user= models.ForeignKey('Users', on_delete = models.CASCADE, db_column='user_id')
@@ -43,7 +55,10 @@ class WatchHistory(models.Model):
     pk = models.CompositePrimaryKey('user', 'media', 'watched_at')
     class Meta:
         db_table = 'watch_history'
-
+        indexes =[
+            models.Index(fields=['user', 'watched_at']),
+            models.Index(fields=['media']),
+        ]
 
 
 class Media(models.Model):
@@ -64,6 +79,15 @@ class Media(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         db_table = 'media'
+        indexes =[
+            models.Index(fields=['media_type']),
+            models.Index(fields=['release_date']),
+            models.Index(fields=['aggregate_rating']),
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['media_type', 'aggregate_rating']),
+            models.Index(fields=['title']),
+            models.Index(fields=['language']),
+        ]
 
 class Movie(models.Model):
     media= models.OneToOneField(Media, on_delete=models.CASCADE, primary_key=True)
@@ -94,6 +118,9 @@ class Season(models.Model):
     class Meta:
         db_table = 'season'
         unique_together= (('media', 'season_number'),)
+        indexes= [
+            models.Index(fields=['media', 'season_number']),
+        ]
 
 class Episode(models.Model):
     episode_id= models.AutoField(primary_key=True)
@@ -107,6 +134,10 @@ class Episode(models.Model):
     class Meta:
         db_table = 'episode'
         unique_together = (('season', 'episode_number'),)
+        indexes = [
+            models.Index(fields=['season', 'episode_number']),
+            models.Index(fields=['media']),
+        ]
 
 class Genre(models.Model):
     genre_id = models.AutoField(primary_key = True)
@@ -121,6 +152,10 @@ class MediaGenre(models.Model):
 
     class Meta:
         db_table = 'media_genre'
+        indexes = [
+            models.Index(fields=['media']),
+            models.Index(fields=['genre']),
+        ]
 
 class Person(models.Model):
     person_id = models.AutoField(primary_key=True)
@@ -147,6 +182,11 @@ class CastCrew(models.Model):
     pk = models.CompositePrimaryKey('media', 'person', 'role')
     class Meta:
         db_table = 'cast_crew'
+        indexes = [
+            models.Index(fields=['media']),
+            models.Index(fields=['person']),
+            models.Index(fields=['media','role']),
+        ]
 
 class Review(models.Model):
     review_id = models.AutoField(primary_key = True)
@@ -158,7 +198,13 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add = True)
     class Meta:
         db_table = 'review'
-        unique_together = (('media', 'user_id'),)
+        unique_together = (('media', 'user'),)
+        indexes = [
+            models.Index(fields=['media']),
+            models.Index(fields=['user']),
+            models.Index(fields=['-review_date']),
+            models.Index(fields=['media', '-review_date']),
+        ]
 
 class Cinema(models.Model):
     cinema_id = models.AutoField(primary_key = True)
@@ -170,6 +216,10 @@ class Cinema(models.Model):
     longitude = models.DecimalField(max_digits=11, decimal_places=8, null = True)
     class Meta:
         db_table = 'cinema'
+        indexes = [
+            models.Index(fields=['city']),
+            models.Index(fields=['region']),
+        ]
 
 class Screen(models.Model):
     screen_id = models.AutoField(primary_key = True)
@@ -180,6 +230,9 @@ class Screen(models.Model):
     class Meta:
         db_table = 'screen'
         unique_together = (('cinema', 'screen_name'),)
+        indexes = [
+            models.Index(fields=['cinema', 'screen_name']),
+        ]
 
 class Showing(models.Model):
     showing_id = models.AutoField(primary_key = True)
@@ -192,7 +245,11 @@ class Showing(models.Model):
     class Meta:
         db_table = 'showing'
         unique_together = (('screen', 'show_date', 'show_time'),)
-
+        indexes = [
+            models.Index(fields=['media', 'show_date']),
+            models.Index(fields=['show_date', 'show_time']),
+            models.Index(fields=['screen', 'show_date']),
+        ]
 class Booking(models.Model):
     booking_id = models.AutoField(primary_key = True)
     user = models.ForeignKey('Users', on_delete = models.CASCADE, db_column='user_id')
@@ -203,7 +260,12 @@ class Booking(models.Model):
     booking_status = models.CharField(max_length = 20, default = 'confirmed')
     class Meta:
         db_table = 'booking'
-
+        indexes=[
+            models.Index(fields=['user']),
+            models.Index(fields=['showing']),
+            models.Index(fields=['-booking_time']),
+            models.Index(fields=['booking_status']),
+        ]
 class Users(models.Model):
     user_id = models.AutoField(primary_key = True)
     name = models.CharField(max_length= 100)
@@ -220,7 +282,12 @@ class Users(models.Model):
         return self.email
     class Meta:
         db_table = 'users'
-
+        indexes=[
+            models.Index(fields=['email']),
+            models.Index(fields=['is_verified']),
+            models.Index(fields=['region']),
+            models.Index(fields=['role']),
+        ]
 class Watchlist(models.Model):
     watchlist_id = models.AutoField(primary_key = True)
     user = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='user_id')
@@ -229,7 +296,9 @@ class Watchlist(models.Model):
     created_at = models.DateTimeField(auto_now_add= True)
     class Meta:
         db_table = 'watchlist'
-
+        indexes = [
+            models.Index(fields=['user','visibility']),
+        ]
 class WatchlistItem(models.Model):
     watchlist = models.ForeignKey(Watchlist, on_delete = models.CASCADE, db_column= 'watchlist_id')
     media = models.ForeignKey(Media, on_delete= models.CASCADE, db_column= 'media_id')
@@ -237,3 +306,6 @@ class WatchlistItem(models.Model):
     pk = models.CompositePrimaryKey('watchlist','media')
     class Meta:
         db_table = 'watchlist_item'
+        indexes = [
+            models.Index(fields=['watchlist', '-added_at']),
+        ]

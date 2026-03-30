@@ -84,6 +84,10 @@ DATABASES = {
         'PASSWORD': 'skt251271',
         'HOST': 'localhost',
         'PORT': '5432',
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
+        'CONN_MAX_AGE': 600,  # Keep connections open for 10 minutes
     }
 }
 
@@ -118,7 +122,15 @@ USE_I18N = True
 
 USE_TZ = True
 
-
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',  # ✅ correct
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
