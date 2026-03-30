@@ -289,7 +289,7 @@ def get_trending(request):
 
 @api_view(['GET'])
 def get_recommendations(request, user_id):
-    recommendations = RecommendationService.get_recommendations_for_user(user_id)
+    recommendations = RecommendationService.get_recommendation_for_user(user_id)
     return Response(recommendations)
 
 @api_view(['GET'])
@@ -306,7 +306,7 @@ def get_similar_media(request,media_id):
 
 @api_view(['GET'])
 def get_tv_show_seasons(request, media_id):
-    seasons = MediaService.get_tv_show_seasons(media_id)
+    seasons = TVMetadataService.get_all_seasons_for_show(media_id)
     return Response(seasons)
 
 @api_view(['GET'])

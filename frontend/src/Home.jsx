@@ -241,7 +241,7 @@ export default function Home() {
 
     const endpoint = (query || genre || topRated) ? '/api/search/' : '/api/catalog/';
     axios.get(`${API}${endpoint}`, { params })
-      .then(res => setMedia(res.data))
+      .then(res => setMedia(Array.isArray(res.data) ? res.data : (res.data.results ?? [])))
       .catch(() => setMedia([]))
       .finally(() => setLoading(false));
   }, [query, mediaType, genre, topRated]);

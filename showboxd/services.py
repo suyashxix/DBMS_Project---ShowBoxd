@@ -500,14 +500,14 @@ class TVMetadataService:
             GROUP BY s.season_id, s.season_number, s.release_date, s.total_episodes
             ORDER BY s.season_number
         """, [media_id])
-        return dictfetchall(cursor)
+            return dictfetchall(cursor)
 class RecommendationService:
     @staticmethod
     def get_similar_media(media_id, limit=10):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT m.media_id, m.title, m.poster_url, m.media_type, m.aggregate_rating, ms.similiarity_score
+                SELECT m.media_id, m.title, m.poster_url, m.media_type, m.aggregate_rating, ms.similarity_score
                 FROM media_similarity ms
                 JOIN media m ON(
                     CASE
@@ -588,7 +588,7 @@ class RecommendationService:
             if len(combined) >= limit:
                 break
         return combined
-    
+
 class ShowingService:
     @staticmethod
     def get_showtimes_by_location(city=None, region = None, date = None):

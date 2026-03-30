@@ -2,9 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Home from './Home';
 import MovieDetail from './MovieDetail';
 import MyBookings from './Mybookings';
-
-
+import Login from './login';
+import { useState } from 'react';
 function App() {
+  const [user, setUser] = useState(null);
   return (
     <Router>
       <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#f5f3ef', minHeight: '100vh' }}>
@@ -24,6 +25,7 @@ function App() {
           <Route path="/"          element={<Home />} />
           <Route path="/media/:id" element={<MovieDetail />} />
           <Route path="/bookings"  element={<MyBookings />} />
+          <Route path="/login" element={<Login onLogin={setUser} />} />
         </Routes>
       </div>
     </Router>
