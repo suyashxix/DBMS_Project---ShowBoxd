@@ -322,7 +322,7 @@ export default function Login({ onLogin }) {
       localStorage.setItem('role', role);
       setAlert({ type: 'success', msg: `Welcome back, ${userName}!` });
       if (onLogin) onLogin({ token, user_id, name: userName, role });
-      setTimeout(() => navigate('/'), 800);
+      setTimeout(() => navigate('/home'), 800);
     } catch (err) {
       setAlert({ type: 'error', msg: err.response?.data?.error || 'Login failed. Please try again.' });
     } finally {
@@ -348,7 +348,7 @@ export default function Login({ onLogin }) {
       localStorage.setItem('user_name', name);
       setAlert({ type: 'success', msg: 'Account created! Redirecting…' });
       if (onLogin) onLogin({ token, user_id, name });
-      setTimeout(() => navigate('/'), 900);
+      setTimeout(() => navigate('/home'), 900);
     } catch (err) {
       setAlert({ type: 'error', msg: err.response?.data?.error || 'Registration failed. Please try again.' });
     } finally {

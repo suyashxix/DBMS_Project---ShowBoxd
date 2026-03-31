@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import {useAuth} from './Authcontext';
 
 const API = 'http://127.0.0.1:8000';
 const USER_ID = 1;

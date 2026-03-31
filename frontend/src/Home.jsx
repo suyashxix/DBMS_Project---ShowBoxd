@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 const API = 'http://127.0.0.1:8000';
@@ -215,13 +215,14 @@ const TYPE_FILTERS = [
 ];
 
 export default function Home() {
+  const [searchParams] = useSearchParams();
   const [media,      setMedia]      = useState([]);
   const [genres,     setGenres]     = useState([]);
   const [loading,    setLoading]    = useState(true);
-  const [query,      setQuery]      = useState('');
-  const [mediaType,  setMediaType]  = useState('');
-  const [genre,      setGenre]      = useState('');
-  const [topRated,   setTopRated]   = useState(false);
+  const [query,      setQuery]      = useState(searchParams.get('q')         || '');
+  const [mediaType,  setMediaType]  = useState(searchParams.get('type')      || '');
+  const [genre,      setGenre]      = useState(searchParams.get('genre')     || '');
+  const [topRated,   setTopRated]   = useState(searchParams.get('top_rated') === 'true');
 
   // Load genres once for the dropdown
   useEffect(() => {
@@ -242,6 +243,7 @@ export default function Home() {
     const endpoint = (query || genre || topRated) ? '/api/search/' : '/api/catalog/';
     axios.get(`${API}${endpoint}`, { params })
       .then(res => setMedia(Array.isArray(res.data) ? res.data : (res.data.results ?? [])))
+
       .catch(() => setMedia([]))
       .finally(() => setLoading(false));
   }, [query, mediaType, genre, topRated]);
