@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './Authcontext';
 import axios from 'axios';
 
 const API = 'http://127.0.0.1:8000';
@@ -21,7 +22,6 @@ const styles = `
     overflow: hidden;
   }
 
-  /* Subtle background decoration */
   .auth-wrap::before {
     content: '';
     position: fixed;
@@ -45,7 +45,6 @@ const styles = `
     pointer-events: none;
   }
 
-  /* Card */
   .auth-card {
     background: #fff;
     border: 1px solid #e4e0d8;
@@ -64,7 +63,6 @@ const styles = `
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* Brand mark */
   .auth-brand {
     display: flex;
     align-items: center;
@@ -89,7 +87,6 @@ const styles = `
     letter-spacing: -0.01em;
   }
 
-  /* Toggle tabs */
   .auth-tabs {
     display: flex;
     background: #f5f3ef;
@@ -117,7 +114,6 @@ const styles = `
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
   }
 
-  /* Heading */
   .auth-heading {
     font-family: 'DM Serif Display', serif;
     font-size: 28px;
@@ -143,7 +139,6 @@ const styles = `
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* Form fields */
   .auth-field {
     margin-bottom: 14px;
     animation: auth-fade-in 0.3s ease both;
@@ -176,14 +171,12 @@ const styles = `
   }
   .auth-input::placeholder { color: #ccc; }
 
-  /* Two-col row */
   .auth-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
 
-  /* Submit button */
   .auth-btn {
     width: 100%;
     padding: 13px;
@@ -204,7 +197,6 @@ const styles = `
   .auth-btn:active:not(:disabled) { transform: scale(0.99); }
   .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Shimmer on button */
   .auth-btn::after {
     content: '';
     position: absolute;
@@ -215,7 +207,6 @@ const styles = `
   }
   .auth-btn:hover:not(:disabled)::after { transform: translateX(100%); }
 
-  /* Error / success */
   .auth-alert {
     padding: 11px 14px;
     border-radius: 9px;
@@ -226,7 +217,6 @@ const styles = `
   .auth-alert-error   { background: #fef0f0; color: #c0392b; border: 1px solid #f5c6c6; }
   .auth-alert-success { background: #edf7f0; color: #1a6b3c; border: 1px solid #b7dfc6; }
 
-  /* Divider */
   .auth-divider {
     display: flex;
     align-items: center;
@@ -236,7 +226,6 @@ const styles = `
   .auth-divider-line { flex: 1; height: 1px; background: #e4e0d8; }
   .auth-divider-text { font-size: 12px; color: #bbb; white-space: nowrap; }
 
-  /* Switch link */
   .auth-switch {
     text-align: center;
     font-size: 13px;
@@ -256,7 +245,6 @@ const styles = `
     text-underline-offset: 2px;
   }
 
-  /* Loading spinner inside button */
   .auth-spinner {
     display: inline-block;
     width: 14px;
@@ -265,12 +253,14 @@ const styles = `
     border-top-color: #fff;
     border-radius: 50%;
     animation: auth-spin 0.6s linear infinite;
-    vertical-align: middle;
     margin-right: 8px;
+    vertical-align: middle;
   }
-  @keyframes auth-spin { to { transform: rotate(360deg); } }
 
-  /* Field animation delays */
+  @keyframes auth-spin {
+    to { transform: rotate(360deg); }
+  }
+
   .auth-field:nth-child(1) { animation-delay: 0.05s; }
   .auth-field:nth-child(2) { animation-delay: 0.1s; }
   .auth-field:nth-child(3) { animation-delay: 0.15s; }
@@ -286,23 +276,22 @@ const styles = `
 const REGIONS = ['IN', 'US', 'UK', 'CA', 'AU', 'SG', 'AE', 'Other'];
 const LANGUAGES = ['English', 'Hindi', 'Tamil', 'Telugu', 'French', 'Spanish', 'German', 'Other'];
 
-export default function Login({ onLogin }) {
+export default function Login() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const { login } = useAuth(); // Use context's login function
+  const [mode, setMode] = useState('login');
 
-  // Login fields
-  const [email,    setEmail]    = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Register fields
-  const [name,     setName]     = useState('');
+  const [name, setName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPass,  setRegPass]  = useState('');
-  const [region,   setRegion]   = useState('IN');
-  const [lang,     setLang]     = useState('');
+  const [regPass, setRegPass] = useState('');
+  const [region, setRegion] = useState('IN');
+  const [lang, setLang] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [alert,   setAlert]   = useState(null); // { type: 'error'|'success', msg }
+  const [alert, setAlert] = useState(null);
 
   const switchMode = (m) => {
     setMode(m);
@@ -316,15 +305,17 @@ export default function Login({ onLogin }) {
     try {
       const res = await axios.post(`${API}/api/auth/login/`, { email, password });
       const { token, user_id, name: userName, role } = res.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user_id', user_id);
-      localStorage.setItem('user_name', userName);
-      localStorage.setItem('role', role);
+
+      // Use context's login function instead of manually setting localStorage
+      login({ token, user_id, name: userName, role });
+
       setAlert({ type: 'success', msg: `Welcome back, ${userName}!` });
-      if (onLogin) onLogin({ token, user_id, name: userName, role });
       setTimeout(() => navigate('/home'), 800);
     } catch (err) {
-      setAlert({ type: 'error', msg: err.response?.data?.error || 'Login failed. Please try again.' });
+      setAlert({
+        type: 'error',
+        msg: err.response?.data?.error || 'Login failed. Please check your credentials.'
+      });
     } finally {
       setLoading(false);
     }
@@ -343,14 +334,17 @@ export default function Login({ onLogin }) {
         preferred_language: lang || null,
       });
       const { token, user_id } = res.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user_id', user_id);
-      localStorage.setItem('user_name', name);
+
+      // Use context's login function
+      login({ token, user_id, name, role: 'user' });
+
       setAlert({ type: 'success', msg: 'Account created! Redirecting…' });
-      if (onLogin) onLogin({ token, user_id, name });
       setTimeout(() => navigate('/home'), 900);
     } catch (err) {
-      setAlert({ type: 'error', msg: err.response?.data?.error || 'Registration failed. Please try again.' });
+      setAlert({
+        type: 'error',
+        msg: err.response?.data?.error || 'Registration failed. Please try again.'
+      });
     } finally {
       setLoading(false);
     }
@@ -362,30 +356,32 @@ export default function Login({ onLogin }) {
       <div className="auth-wrap">
         <div className="auth-card">
 
-          {/* Brand */}
           <div className="auth-brand">
             <div className="auth-brand-icon">🎬</div>
-            <span className="auth-brand-name">Cinélog</span>
+            <span className="auth-brand-name">ShowBoxd</span>
           </div>
 
-          {/* Tabs */}
           <div className="auth-tabs">
-            <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => switchMode('login')}>
+            <button
+              className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
+              onClick={() => switchMode('login')}
+            >
               Sign In
             </button>
-            <button className={`auth-tab ${mode === 'register' ? 'active' : ''}`} onClick={() => switchMode('register')}>
+            <button
+              className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
+              onClick={() => switchMode('register')}
+            >
               Create Account
             </button>
           </div>
 
-          {/* Alert */}
           {alert && (
             <div className={`auth-alert auth-alert-${alert.type}`}>
               {alert.type === 'error' ? '⚠ ' : '✓ '}{alert.msg}
             </div>
           )}
 
-          {/* ── LOGIN ── */}
           {mode === 'login' && (
             <>
               <h1 className="auth-heading">Welcome <em>back.</em></h1>
@@ -434,7 +430,6 @@ export default function Login({ onLogin }) {
             </>
           )}
 
-          {/* ── REGISTER ── */}
           {mode === 'register' && (
             <>
               <h1 className="auth-heading">Start <em>watching.</em></h1>
@@ -493,7 +488,9 @@ export default function Login({ onLogin }) {
                   </div>
 
                   <div className="auth-field">
-                    <label className="auth-label">Language <span style={{ color: '#ccc', fontWeight: 400 }}>(opt.)</span></label>
+                    <label className="auth-label">
+                      Language <span style={{ color: '#ccc', fontWeight: 400 }}>(opt.)</span>
+                    </label>
                     <select
                       className="auth-input"
                       value={lang}
