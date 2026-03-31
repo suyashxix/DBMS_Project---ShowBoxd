@@ -294,7 +294,7 @@ def get_recommendations(request, user_id):
 
 @api_view(['GET'])
 def get_user_watch_history(request, user_id):
-    limit = request.quey_params.get('limit',50)
+    limit = request.query_params.get('limit',50)
     history=WatchHistoryServices.get_watch_history(user_id,int(limit))
     return Response(history)
 

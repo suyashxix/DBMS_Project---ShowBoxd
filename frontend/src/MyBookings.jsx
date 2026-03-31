@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from './Authcontext';
 
 const API = 'http://127.0.0.1:8000';
-const USER_ID = 1;
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap');
@@ -39,25 +39,68 @@ const styles = `
   .mb-empty { text-align: center; padding: 60px 20px; color: #888; font-size: 15px; }
   .mb-empty a { color: #111; font-weight: 500; }
   .mb-loading { text-align: center; padding: 60px; color: #888; }
+
+  /* Guest view */
+  .mb-guest {
+    background: #fff;
+    border: 1px solid #e4e0d8;
+    border-radius: 18px;
+    padding: 52px 40px;
+    text-align: center;
+    max-width: 480px;
+    margin: 60px auto 0;
+  }
+  .mb-guest-icon { font-size: 44px; margin-bottom: 18px; }
+  .mb-guest-title { font-family: 'DM Serif Display', serif; font-size: 26px; color: #111; margin-bottom: 10px; }
+  .mb-guest-sub { font-size: 14px; color: #888; line-height: 1.6; margin-bottom: 24px; }
+  .mb-guest-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 28px;
+    background: #111;
+    color: #fff;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.15s;
+  }
+  .mb-guest-btn:hover { opacity: 0.85; }
+  .mb-guest-note { font-size: 12px; color: #bbb; margin-top: 14px; }
 `;
 
+function GuestView() {
+  return (
+    <div className="mb-guest">
+      <div className="mb-guest-icon">🎟</div>
+      <div className="mb-guest-title">My Bookings</div>
+      <p className="mb-guest-sub">
+        Sign in to view your cinema ticket bookings and manage upcoming screenings.
+      </p>
+      <Link to="/login" className="mb-guest-btn">Sign In to View Bookings</Link>
+      <p className="mb-guest-note">Bookings are tied to your account and visible only to you.</p>
+    </div>
+  );
+}
+
 export default function MyBookings() {
+  const { user } = useAuth();
+
   const [bookings,   setBookings]  = useState([]);
   const [loading,    setLoading]   = useState(true);
   const [cancelling, setCancelling]= useState(null);
 
   const fetchBookings = () => {
-    // Query 7 — raw SQL flat dict shape:
-    // { booking_id, media_id, media_title, poster_url, cinema_name, cinema_location,
-    //   screen_name, showing_id, show_date, show_time, seats_booked, total_price,
-    //   booking_status, booking_time }
-    axios.get(`${API}/api/user/${USER_ID}/bookings/`)
-      .then(res => setBookings(res.data))
+    if (!user) { setLoading(false); return; }
+    axios.get(`${API}/api/user/${user.user_id}/bookings/`)
+      .then(res => setBookings(Array.isArray(res.data) ? res.data : (res.data.results ?? [])))
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchBookings(); }, []);
+  useEffect(() => { fetchBookings(); }, [user]);
 
   const cancelBooking = async (bookingId) => {
     if (!window.confirm('Cancel this booking?')) return;
@@ -69,6 +112,13 @@ export default function MyBookings() {
       alert(err.response?.data?.error || 'Failed to cancel booking');
     } finally { setCancelling(null); }
   };
+
+  if (!user) return (
+    <>
+      <style>{styles}</style>
+      <div className="mb-wrap"><GuestView /></div>
+    </>
+  );
 
   // Group flat rows by media_id
   const groups = bookings.reduce((acc, b) => {
@@ -88,13 +138,13 @@ export default function MyBookings() {
       <style>{styles}</style>
       <div className="mb-wrap">
         <h1 className="mb-heading">My Bookings</h1>
-        <p className="mb-sub">All ticket bookings for your account</p>
+        <p className="mb-sub">All ticket bookings for {user.name}</p>
 
         {loading && <div className="mb-loading">Loading…</div>}
 
         {!loading && Object.keys(groups).length === 0 && (
           <div className="mb-empty">
-            <p>No bookings yet. <Link to="/">Browse movies</Link> to book tickets.</p>
+            <p>No bookings yet. <Link to="/home">Browse movies</Link> to book tickets.</p>
           </div>
         )}
 
