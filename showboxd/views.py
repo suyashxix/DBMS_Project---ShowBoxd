@@ -14,9 +14,9 @@ from django.core.cache import cache
 from .validators import validate_required_fields, validate_rating, validate_media_type
 
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 20
+    page_size = 10000
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 100000
 
 @api_view(['GET'])
 def get_media_catalog(request):

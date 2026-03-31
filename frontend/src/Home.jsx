@@ -1,353 +1,703 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 
 const API = 'http://127.0.0.1:8000';
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
 
   .hm-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
   .hm-wrap {
     font-family: 'DM Sans', sans-serif;
-    background: #f5f3ef;
+    background: #f8f6f2;
     min-height: 100vh;
-    padding: 32px 28px 48px;
-    max-width: 1100px;
-    margin: 0 auto;
+    padding-bottom: 80px;
   }
 
-  /* Top bar */
-  .hm-topbar {
+  /* Hero Carousel */
+  .hm-hero {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 56px;
+  }
+  .hm-hero-track {
     display: flex;
-    gap: 12px;
-    align-items: stretch;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .hm-hero-slide {
+    flex: 0 0 100%;
+    position: relative;
+    height: 520px;
+  }
+  .hm-hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hm-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      rgba(17,17,17,0.92) 0%,
+      rgba(17,17,17,0.7) 40%,
+      rgba(17,17,17,0.2) 70%,
+      transparent 100%
+    );
+  }
+  .hm-hero-content {
+    position: absolute;
+    top: 50%;
+    left: 64px;
+    transform: translateY(-50%);
+    max-width: 560px;
+    color: #fff;
+  }
+  .hm-hero-tag {
+    display: inline-block;
+    background: #d4a853;
+    color: #111;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    border-radius: 4px;
     margin-bottom: 20px;
+  }
+  .hm-hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    text-wrap: balance;
+  }
+  .hm-hero-desc {
+    font-size: 16px;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.65;
+    margin-bottom: 28px;
+  }
+  .hm-hero-actions {
+    display: flex;
+    gap: 14px;
     flex-wrap: wrap;
   }
-  .hm-search-wrap {
-    flex: 1;
-    min-width: 220px;
-    position: relative;
-  }
-  .hm-search-icon {
-    position: absolute;
-    left: 13px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 15px;
-    pointer-events: none;
-    color: #aaa;
-  }
-  .hm-search {
-    width: 100%;
-    padding: 10px 14px 10px 38px;
-    border: 1px solid #e0ddd6;
-    border-radius: 8px;
+  .hm-hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 26px;
+    border-radius: 10px;
     font-family: 'DM Sans', sans-serif;
     font-size: 14px;
-    background: #fff;
-    color: #111;
-    outline: none;
-    transition: border-color 0.15s;
-    height: 42px;
-  }
-  .hm-search:focus { border-color: #111; }
-
-  /* Filter pills */
-  .hm-filters {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 24px;
-    align-items: center;
-  }
-  .hm-filter-label { font-size: 12px; color: #999; margin-right: 2px; }
-  .hm-pill {
-    padding: 6px 14px;
-    border-radius: 20px;
-    border: 1px solid #e0ddd6;
-    background: #fff;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    color: #555;
-    cursor: pointer;
-    transition: all 0.12s;
-    white-space: nowrap;
-  }
-  .hm-pill:hover { border-color: #aaa; color: #111; }
-  .hm-pill.active { background: #111; color: #fff; border-color: #111; }
-
-  .hm-select {
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid #e0ddd6;
-    background: #fff;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    color: #555;
-    cursor: pointer;
-    outline: none;
-    height: 34px;
-  }
-  .hm-select:focus { border-color: #111; }
-
-  /* Results header */
-  .hm-results-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-  .hm-results-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 24px;
-    font-weight: 400;
-    color: #111;
-  }
-  .hm-results-count { font-size: 13px; color: #999; }
-
-  /* Grid */
-  .hm-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 16px;
-  }
-
-  /* Card */
-  .hm-card {
-    background: #fff;
-    border: 1px solid #e4e0d8;
-    border-radius: 12px;
-    overflow: hidden;
+    font-weight: 600;
     text-decoration: none;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
   }
-  .hm-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+  .hm-hero-btn.primary {
+    background: #fff;
+    color: #111;
+  }
+  .hm-hero-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  .hm-hero-btn.secondary {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.25);
+    backdrop-filter: blur(8px);
+  }
+  .hm-hero-btn.secondary:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.4);
+  }
 
-  .hm-card-poster {
-    width: 100%;
-    aspect-ratio: 2/3;
-    object-fit: cover;
-    background: #1a1a1a;
-    display: block;
+  /* Hero Navigation */
+  .hm-hero-nav {
+    position: absolute;
+    bottom: 40px;
+    right: 64px;
+    display: flex;
+    gap: 12px;
   }
-  .hm-card-poster-placeholder {
-    width: 100%;
-    aspect-ratio: 2/3;
-    background: linear-gradient(145deg, #1a1a1a, #2e2e2e);
+  .hm-hero-arrow {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 36px;
+    transition: all 0.2s;
   }
-  .hm-card-body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .hm-card-title {
+  .hm-hero-arrow:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.05);
+  }
+  .hm-hero-dots {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+  }
+  .hm-hero-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .hm-hero-dot.active {
+    background: #fff;
+    transform: scale(1.3);
+  }
+
+  /* Main Content */
+  .hm-main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+
+  /* Section */
+  .hm-section {
+    margin-bottom: 56px;
+  }
+  .hm-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .hm-section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 30px;
+    font-weight: 400;
+    color: #111;
+  }
+  .hm-section-link {
     font-size: 14px;
     font-weight: 500;
+    color: #888;
+    text-decoration: none;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hm-section-link:hover { color: #111; }
+
+  /* Scroll Row */
+  .hm-scroll-wrap {
+    position: relative;
+  }
+  .hm-scroll-row {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 8px 4px 20px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hm-scroll-row::-webkit-scrollbar { display: none; }
+  .hm-scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid #e4e0d8;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.2s;
+    color: #333;
+  }
+  .hm-scroll-btn:hover {
+    transform: translateY(-50%) scale(1.08);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12);
     color: #111;
-    line-height: 1.3;
+  }
+  .hm-scroll-btn.left { left: -24px; }
+  .hm-scroll-btn.right { right: -24px; }
+
+  /* Media Card */
+  .hm-card {
+    flex: 0 0 220px;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.25s, box-shadow 0.25s;
+    border: 1px solid #ebe8e2;
+  }
+  .hm-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.1);
+  }
+  .hm-card-poster-wrap {
+    position: relative;
+    aspect-ratio: 2/3;
+    background: #1a1a1a;
+    overflow: hidden;
+  }
+  .hm-card-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s;
+  }
+  .hm-card:hover .hm-card-poster {
+    transform: scale(1.06);
+  }
+  .hm-card-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(145deg, #1f1f1f, #2d2d2d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #444;
+  }
+  .hm-card-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    opacity: 0;
+    transition: opacity 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hm-card:hover .hm-card-overlay { opacity: 1; }
+  .hm-card-action {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #111;
+    transform: scale(0.85);
+    transition: transform 0.2s;
+  }
+  .hm-card:hover .hm-card-action {
+    transform: scale(1);
+  }
+  .hm-card-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(17,17,17,0.8);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 5px 10px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+  }
+  .hm-card-body {
+    padding: 16px 18px 20px;
+  }
+  .hm-card-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: #111;
+    line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    margin-bottom: 12px;
   }
-  .hm-card-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+  .hm-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
   .hm-card-rating {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    background: #111;
-    color: #f5c518;
-    padding: 2px 8px;
-    border-radius: 12px;
-  }
-  .hm-card-type {
-    font-size: 11px;
-    color: #aaa;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  /* Empty / loading */
-  .hm-empty { text-align: center; padding: 60px 20px; color: #888; font-size: 15px; }
-  .hm-loading { text-align: center; padding: 60px; color: #888; }
-
-  /* Active filter summary */
-  .hm-active-filter {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #111;
-    color: #fff;
-    font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    margin-bottom: 12px;
-  }
-  .hm-active-filter button {
-    background: none;
-    border: none;
-    color: #aaa;
-    cursor: pointer;
+    gap: 5px;
     font-size: 14px;
-    padding: 0;
-    line-height: 1;
+    font-weight: 600;
+    color: #111;
   }
-  .hm-active-filter button:hover { color: #fff; }
+  .hm-card-rating svg { color: #d4a853; }
+  .hm-card-year {
+    font-size: 13px;
+    color: #999;
+  }
 
-  @media (max-width: 600px) {
-    .hm-wrap { padding: 20px 16px 40px; }
-    .hm-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  /* Loading Skeletons */
+  .hm-skeleton {
+    background: linear-gradient(90deg, #eae7e0 25%, #f5f3ef 50%, #eae7e0 75%);
+    background-size: 200% 100%;
+    animation: hm-shimmer 1.5s infinite;
+    border-radius: 16px;
+  }
+  @keyframes hm-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .hm-skeleton-card {
+    flex: 0 0 220px;
+    aspect-ratio: 2/3.4;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .hm-hero-slide { height: 440px; }
+    .hm-hero-content { left: 48px; max-width: 480px; }
+    .hm-hero-title { font-size: 38px; }
+    .hm-hero-nav { right: 48px; }
+    .hm-main { padding: 0 32px; }
+    .hm-scroll-btn { display: none; }
+  }
+  @media (max-width: 768px) {
+    .hm-hero-slide { height: 400px; }
+    .hm-hero-content { left: 28px; right: 28px; max-width: none; }
+    .hm-hero-title { font-size: 30px; }
+    .hm-hero-desc { font-size: 14px; }
+    .hm-hero-nav { display: none; }
+    .hm-main { padding: 0 20px; }
+    .hm-section-title { font-size: 24px; }
+    .hm-card { flex: 0 0 160px; border-radius: 12px; }
+    .hm-card-body { padding: 12px 14px 16px; }
+    .hm-card-title { font-size: 13px; margin-bottom: 8px; }
   }
 `;
 
-const TYPE_FILTERS = [
-  { label: 'All',      value: '' },
-  { label: 'Movies',   value: 'movie' },
-  { label: 'TV Shows', value: 'tv_show' },
+// Featured news for movie booking/review platform
+const FEATURED_NEWS = [
+  {
+    id: 1,
+    tag: 'Now Showing',
+    title: 'Blockbuster Season is Here',
+    desc: 'Book your tickets now for the most anticipated films of the year. Premium seats available at select theaters.',
+    image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1600&h=900&fit=crop',
+    link: '/showtimes',
+    cta: 'Book Tickets',
+  },
+  {
+    id: 2,
+    tag: 'Critics Choice',
+    title: 'Award Season Winners Announced',
+    desc: 'See what films and performances are being celebrated this year. Read reviews from top critics and audiences.',
+    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600&h=900&fit=crop',
+    link: '/home?top_rated=true',
+    cta: 'See Winners',
+  },
+  {
+    id: 3,
+    tag: 'Coming Soon',
+    title: 'Most Anticipated Releases',
+    desc: 'Get early access to tickets for upcoming blockbusters. Add them to your watchlist and never miss a premiere.',
+    image: 'https://images.unsplash.com/photo-1518929458119-e5bf444c30f4?w=1600&h=900&fit=crop',
+    link: '/home?sort=release_date',
+    cta: 'View Releases',
+  },
+  {
+    id: 4,
+    tag: 'Top Reviews',
+    title: 'Community Picks This Month',
+    desc: 'Discover what our community is loving. Read honest reviews and ratings from fellow movie enthusiasts.',
+    image: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1600&h=900&fit=crop',
+    link: '/trending',
+    cta: 'Read Reviews',
+  },
 ];
 
-export default function Home() {
-  const [searchParams] = useSearchParams();
-  const [media,      setMedia]      = useState([]);
-  const [genres,     setGenres]     = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [query,      setQuery]      = useState(searchParams.get('q')         || '');
-  const [mediaType,  setMediaType]  = useState(searchParams.get('type')      || '');
-  const [genre,      setGenre]      = useState(searchParams.get('genre')     || '');
-  const [topRated,   setTopRated]   = useState(searchParams.get('top_rated') === 'true');
+// Icons
+const ChevronLeftIcon = () => (
+  <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+  </svg>
+);
 
-  // Load genres once for the dropdown
+const ChevronRightIcon = () => (
+  <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
+
+const TicketIcon = () => (
+  <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 104 0V7a2 2 0 00-2-2zm0 0h14a2 2 0 012 2v3a2 2 0 11-4 0V7m4 0a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2" />
+  </svg>
+);
+
+const FilmIcon = () => (
+  <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+  </svg>
+);
+
+const ArrowRightIcon = () => (
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+// Scroll Row Component
+function ScrollRow({ title, items, loading, linkTo }) {
+  const scrollRef = useRef(null);
+
+  const scroll = (dir) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({
+        left: dir === 'left' ? -500 : 500,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  return (
+    <div className="hm-section">
+      <div className="hm-section-header">
+        <h2 className="hm-section-title">{title}</h2>
+        {linkTo && (
+          <Link to={linkTo} className="hm-section-link">
+            View all <ArrowRightIcon />
+          </Link>
+        )}
+      </div>
+      <div className="hm-scroll-wrap">
+        <button className="hm-scroll-btn left" onClick={() => scroll('left')}>
+          <ChevronLeftIcon />
+        </button>
+        <div className="hm-scroll-row" ref={scrollRef}>
+          {loading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="hm-skeleton hm-skeleton-card" />
+            ))
+          ) : (
+            items.map((item) => (
+              <Link to={`/media/${item.media_id}`} className="hm-card" key={item.media_id}>
+                <div className="hm-card-poster-wrap">
+                  {item.poster_url ? (
+                    <img
+                      className="hm-card-poster"
+                      src={item.poster_url}
+                      alt={item.title}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="hm-card-placeholder">
+                      <FilmIcon />
+                    </div>
+                  )}
+                  <span className="hm-card-badge">
+                    {item.media_type === 'tv_show' ? 'TV Series' : 'Movie'}
+                  </span>
+                  <div className="hm-card-overlay">
+                    <div className="hm-card-action">
+                      <TicketIcon />
+                    </div>
+                  </div>
+                </div>
+                <div className="hm-card-body">
+                  <div className="hm-card-title">{item.title}</div>
+                  <div className="hm-card-meta">
+                    <span className="hm-card-rating">
+                      <StarIcon />
+                      {item.aggregate_rating && !isNaN(item.aggregate_rating)
+                        ? Number(item.aggregate_rating).toFixed(1)
+                        : 'N/A'}
+                    </span>
+                    <span className="hm-card-year">
+                      {item.release_date ? new Date(item.release_date).getFullYear() : ''}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+        <button className="hm-scroll-btn right" onClick={() => scroll('right')}>
+          <ChevronRightIcon />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function Home() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [trendingMovies, setTrendingMovies] = useState([]);
+  const [trendingShows, setTrendingShows] = useState([]);
+  const [recommendedMovies, setRecommendedMovies] = useState([]);
+  const [recommendedShows, setRecommendedShows] = useState([]);
+  const [loading, setLoading] = useState({
+    trendingMovies: true,
+    trendingShows: true,
+    recommendedMovies: true,
+    recommendedShows: true,
+  });
+
+  // Auto-advance carousel
   useEffect(() => {
-    axios.get(`${API}/api/genres/`)
-      .then(res => setGenres(res.data))
-      .catch(() => {});
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % FEATURED_NEWS.length);
+    }, 6000);
+    return () => clearInterval(timer);
   }, []);
 
-  // Re-fetch whenever any filter changes (debounced for search)
-  const fetchMedia = useCallback(() => {
-    setLoading(true);
-    const params = {};
-    if (query)     params.q         = query;
-    if (mediaType) params.type      = mediaType;
-    if (genre)     params.genre     = genre;
-    if (topRated)  params.top_rated = 'true';
-
-    const endpoint = (query || genre || topRated) ? '/api/search/' : '/api/catalog/';
-    axios.get(`${API}${endpoint}`, { params })
-      .then(res => setMedia(Array.isArray(res.data) ? res.data : (res.data.results ?? [])))
-
-      .catch(() => setMedia([]))
-      .finally(() => setLoading(false));
-  }, [query, mediaType, genre, topRated]);
-
-  // Debounce search input
+  // Fetch data
   useEffect(() => {
-    const t = setTimeout(fetchMedia, query ? 350 : 0);
-    return () => clearTimeout(t);
-  }, [fetchMedia, query]);
+    axios
+      .get(`${API}/api/search/`, { params: { top_rated: 'true', type: 'movie' } })
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
+        setTrendingMovies(data.slice(0, 12));
+      })
+      .catch(() => setTrendingMovies([]))
+      .finally(() => setLoading((prev) => ({ ...prev, trendingMovies: false })));
+  }, []);
 
-  const resultLabel = () => {
-    if (topRated)      return 'Top Rated';
-    if (query)         return `Results for "${query}"`;
-    if (genre)         return genre;
-    if (mediaType === 'movie')   return 'Movies';
-    if (mediaType === 'tv_show') return 'TV Shows';
-    return 'Browse';
-  };
+  useEffect(() => {
+    axios
+      .get(`${API}/api/search/`, { params: { top_rated: 'true', type: 'tv_show' } })
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
+        setTrendingShows(data.slice(0, 12));
+      })
+      .catch(() => setTrendingShows([]))
+      .finally(() => setLoading((prev) => ({ ...prev, trendingShows: false })));
+  }, []);
+
+  useEffect(() => {
+    axios
+      .get(`${API}/api/catalog/`, { params: { type: 'movie' } })
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
+        setRecommendedMovies(data.slice(0, 12));
+      })
+      .catch(() => setRecommendedMovies([]))
+      .finally(() => setLoading((prev) => ({ ...prev, recommendedMovies: false })));
+  }, []);
+
+  useEffect(() => {
+    axios
+      .get(`${API}/api/catalog/`, { params: { type: 'tv_show' } })
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
+        setRecommendedShows(data.slice(0, 12));
+      })
+      .catch(() => setRecommendedShows([]))
+      .finally(() => setLoading((prev) => ({ ...prev, recommendedShows: false })));
+  }, []);
+
+  const goToSlide = (i) => setCurrentSlide(i);
+  const prevSlide = () => setCurrentSlide((p) => (p - 1 + FEATURED_NEWS.length) % FEATURED_NEWS.length);
+  const nextSlide = () => setCurrentSlide((p) => (p + 1) % FEATURED_NEWS.length);
 
   return (
     <>
       <style>{styles}</style>
       <div className="hm-wrap">
-
-        {/* Search bar */}
-        <div className="hm-topbar">
-          <div className="hm-search-wrap">
-            <span className="hm-search-icon">🔍</span>
-            <input
-              className="hm-search"
-              type="text"
-              placeholder="Search movies & shows…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
-          </div>
-
-          <select
-            className="hm-select"
-            value={genre}
-            onChange={e => { setGenre(e.target.value); setTopRated(false); }}
+        {/* Hero Carousel */}
+        <div className="hm-hero">
+          <div
+            className="hm-hero-track"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
           >
-            <option value="">All Genres</option>
-            {genres.map(g => (
-              <option key={g.genre_id} value={g.genre_name}>{g.genre_name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Type + Top Rated filter pills */}
-        <div className="hm-filters">
-          <span className="hm-filter-label">Type:</span>
-          {TYPE_FILTERS.map(f => (
-            <button
-              key={f.value}
-              className={`hm-pill ${mediaType === f.value && !topRated ? 'active' : ''}`}
-              onClick={() => { setMediaType(f.value); setTopRated(false); }}
-            >
-              {f.label}
-            </button>
-          ))}
-          <span className="hm-filter-label" style={{ marginLeft: '8px' }}>Sort:</span>
-          <button
-            className={`hm-pill ${topRated ? 'active' : ''}`}
-            onClick={() => { setTopRated(t => !t); setMediaType(''); }}
-          >
-            ⭐ Top Rated
-          </button>
-        </div>
-
-        {/* Results header */}
-        <div className="hm-results-header">
-          <h2 className="hm-results-title">{resultLabel()}</h2>
-          {!loading && <span className="hm-results-count">{media.length} title{media.length !== 1 ? 's' : ''}</span>}
-        </div>
-
-        {loading && <div className="hm-loading">Loading…</div>}
-
-        {!loading && media.length === 0 && (
-          <div className="hm-empty">No titles found. Try a different search or filter.</div>
-        )}
-
-        {!loading && (
-          <div className="hm-grid">
-            {media.map(item => (
-              <Link to={`/media/${item.media_id}`} className="hm-card" key={item.media_id}>
-                {item.poster_url
-                  ? <img className="hm-card-poster" src={item.poster_url} alt={item.title} onError={e => { e.target.style.display='none'; }} />
-                  : <div className="hm-card-poster-placeholder">🎬</div>
-                }
-                <div className="hm-card-body">
-                  <div className="hm-card-title">{item.title}</div>
-                  <div className="hm-card-meta">
-                    {item.aggregate_rating
-                      ? <span className="hm-card-rating">⭐ {item.aggregate_rating}</span>
-                      : <span className="hm-card-rating" style={{ background: '#ccc', color: '#666' }}>NR</span>
-                    }
-                    <span className="hm-card-type">{item.media_type === 'tv_show' ? 'TV' : 'Film'}</span>
+            {FEATURED_NEWS.map((item) => (
+              <div className="hm-hero-slide" key={item.id}>
+                <img className="hm-hero-img" src={item.image} alt={item.title} />
+                <div className="hm-hero-overlay" />
+                <div className="hm-hero-content">
+                  <span className="hm-hero-tag">{item.tag}</span>
+                  <h1 className="hm-hero-title">{item.title}</h1>
+                  <p className="hm-hero-desc">{item.desc}</p>
+                  <div className="hm-hero-actions">
+                    <Link to={item.link} className="hm-hero-btn primary">
+                      {item.cta}
+                    </Link>
+                    <Link to="/watchlist" className="hm-hero-btn secondary">
+                      Add to Watchlist
+                    </Link>
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
-        )}
+          <div className="hm-hero-nav">
+            <button className="hm-hero-arrow" onClick={prevSlide}>
+              <ChevronLeftIcon />
+            </button>
+            <button className="hm-hero-arrow" onClick={nextSlide}>
+              <ChevronRightIcon />
+            </button>
+          </div>
+          <div className="hm-hero-dots">
+            {FEATURED_NEWS.map((_, i) => (
+              <button
+                key={i}
+                className={`hm-hero-dot ${i === currentSlide ? 'active' : ''}`}
+                onClick={() => goToSlide(i)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Content Rows */}
+        <main className="hm-main">
+          <ScrollRow
+            title="Trending Movies"
+            items={trendingMovies}
+            loading={loading.trendingMovies}
+            linkTo="/home?type=movie&top_rated=true"
+          />
+          <ScrollRow
+            title="Trending TV Shows"
+            items={trendingShows}
+            loading={loading.trendingShows}
+            linkTo="/home?type=tv_show&top_rated=true"
+          />
+          <ScrollRow
+            title="Recommended Movies"
+            items={recommendedMovies}
+            loading={loading.recommendedMovies}
+            linkTo="/home?type=movie"
+          />
+          <ScrollRow
+            title="Recommended TV Shows"
+            items={recommendedShows}
+            loading={loading.recommendedShows}
+            linkTo="/home?type=tv_show"
+          />
+        </main>
       </div>
     </>
   );
