@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './Authcontext';
-import Navbar from './navbar';
+import Navbar from './Navbar';
 import Home from './Home';
 import Login from './login';
 import MovieDetail from './MovieDetail';
@@ -8,39 +8,45 @@ import MyBookings from './MyBookings';
 import Trending from './Trending';
 import Watchlist from './Watchlist';
 import WatchHistory from './WatchHistory';
+import AwardWinners from './AwardWinners';
+import NowShowing from './NowShowing';
+import ComingSoon from './ComingSoon';
+import CommunityPicks from './CommunityPicks';
 
 function Layout({ children }) {
-  return (
-    <>
-      <Navbar />
-      {children}
-    </>
-  );
+    return (
+        <>
+            <Navbar />
+            {children}
+        </>
+    );
 }
 
 function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/home"     element={<Layout><Home /></Layout>} />
-      <Route path="/trending" element={<Layout><Trending /></Layout>} />
-      <Route path="/media/:id" element={<Layout><MovieDetail /></Layout>} />
-      <Route path="/bookings"  element={<Layout><MyBookings /></Layout>} />
-      <Route path="/watchlist" element={<Layout><Watchlist /></Layout>} />
-      <Route path="/history"   element={<Layout><WatchHistory /></Layout>} />
-      {/* <Route path="/profile"  element={<Layout><Profile /></Layout>} /> */}
-      {/* <Route path="/settings" element={<Layout><Settings /></Layout>} /> */}
-      <Route path="*" element={<Navigate to="/home" replace />} />
-    </Routes>
-  );
+    return (
+        <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/home" element={<Layout><Home /></Layout>} />
+            <Route path="/trending" element={<Layout><Trending /></Layout>} />
+            <Route path="/media/:id" element={<Layout><MovieDetail /></Layout>} />
+            <Route path="/bookings" element={<Layout><MyBookings /></Layout>} />
+            <Route path="/watchlist" element={<Layout><Watchlist /></Layout>} />
+            <Route path="/history" element={<Layout><WatchHistory /></Layout>} />
+            <Route path="/winners" element={<Layout><AwardWinners /></Layout>} />
+            <Route path="/now-showing" element={<Layout><NowShowing /></Layout>} />
+            <Route path="/coming-soon" element={<Layout><ComingSoon /></Layout>} />
+            <Route path="/community" element={<Layout><CommunityPicks /></Layout>} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
+        </Routes>
+    );
 }
 
 export default function App() {
-return (
-    <AuthProvider>
-      <BrowserRouter>
-          <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
-  );
+    return (
+        <AuthProvider>
+            <BrowserRouter>
+                <AppRoutes />
+            </BrowserRouter>
+        </AuthProvider>
+    );
 }

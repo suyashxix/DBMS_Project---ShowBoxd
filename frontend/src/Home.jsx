@@ -400,7 +400,7 @@ const FEATURED_NEWS = [
     title: 'Blockbuster Season is Here',
     desc: 'Book your tickets now for the most anticipated films of the year. Premium seats available at select theaters.',
     image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1600&h=900&fit=crop',
-    link: '/showtimes',
+    link: '/now-showing',
     cta: 'Book Tickets',
   },
   {
@@ -409,7 +409,7 @@ const FEATURED_NEWS = [
     title: 'Award Season Winners Announced',
     desc: 'See what films and performances are being celebrated this year. Read reviews from top critics and audiences.',
     image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600&h=900&fit=crop',
-    link: '/home?top_rated=true',
+    link: '/winners',
     cta: 'See Winners',
   },
   {
@@ -418,7 +418,7 @@ const FEATURED_NEWS = [
     title: 'Most Anticipated Releases',
     desc: 'Get early access to tickets for upcoming blockbusters. Add them to your watchlist and never miss a premiere.',
     image: 'https://images.unsplash.com/photo-1518929458119-e5bf444c30f4?w=1600&h=900&fit=crop',
-    link: '/home?sort=release_date',
+    link: '/coming-soon',
     cta: 'View Releases',
   },
   {
@@ -427,7 +427,7 @@ const FEATURED_NEWS = [
     title: 'Community Picks This Month',
     desc: 'Discover what our community is loving. Read honest reviews and ratings from fellow movie enthusiasts.',
     image: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1600&h=900&fit=crop',
-    link: '/trending',
+    link: '/community',
     cta: 'Read Reviews',
   },
 ];
