@@ -33,6 +33,7 @@ urlpatterns = [
     path('watchlist/add/', views.add_to_watchlist, name='add_to_watchlist'),
     path('watchlist/remove/', views.remove_from_watchlist, name='remove_from_watchlist'),
     path('watchlist/<int:user_id>/<str:visibility>/', views.get_my_watchlist, name='get_my_watchlist'),
+    path('watchlist/toggle/', views.toggle_watchlist, name='toggle_watchlist'),
 
     # Watch History
     path('watch/', views.record_watch, name='record_watch'),

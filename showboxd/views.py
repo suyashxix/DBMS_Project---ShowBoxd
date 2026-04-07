@@ -350,3 +350,13 @@ def get_platform_content(request, platform_id):
     content = PlatformService.get_content_for_platform(platform_id, region, media_types)
     return Response(content)
 
+@api_view(['POST'])
+def toggle_watchlist(request):
+    user_id = request.data.get('user_id')
+    media_id = request.data.get('media_id')
+    visibility = request.data.get('visibility', 'private')
+
+    result = WatchListService.toggle_watchlist(user_id, media_id, visibility)
+
+    return Response({"status": result})
+

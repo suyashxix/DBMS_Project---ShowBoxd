@@ -98,6 +98,8 @@ function MovieDetail() {
   const [selectedShowing, setSelectedShowing]= useState('');
   const [submitting,      setSubmitting]     = useState(false);
   const [booking,         setBooking]        = useState(false);
+  const [privateStatus, setPrivateStatus] = useState(false);
+  const [publicStatus, setPublicStatus] = useState(false);
 
   const fetchData = (preserveSelection = false) => {
     axios.get(`${API}/api/media/${id}/`).then(res => setData(res.data));
@@ -118,6 +120,41 @@ function MovieDetail() {
   };
 
   useEffect(() => { fetchData(false); }, [id, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchWatchlistStatus = async () => {
+      try {
+        // PRIVATE
+        const privateRes = await axios.get(
+          `${API}/api/watchlist/${user.user_id}/private/`
+        );
+      
+        const isPrivate = privateRes.data.some(
+          (item) => item.media_id === Number(id)
+        );
+      
+        setPrivateStatus(isPrivate);
+      
+        // PUBLIC
+        const publicRes = await axios.get(
+          `${API}/api/watchlist/${user.user_id}/public/`
+        );
+      
+        const isPublic = publicRes.data.some(
+          (item) => item.media_id === Number(id)
+        );
+      
+        setPublicStatus(isPublic);
+      
+      } catch (err) {
+        console.error(err);
+      }
+    };
+  
+    fetchWatchlistStatus();
+  }, [user, id]);
 
   const movieBookings = userBookings.filter(
     b => String(b.media_id) === String(id) && b.booking_status !== 'cancelled'
@@ -159,6 +196,21 @@ function MovieDetail() {
       alert(err.response?.data?.error || 'Booking failed');
     } finally { setBooking(false); }
   };
+  const handleWatchlist = async (visibility) => {
+    if (!user) return;
+
+    try {
+      const res = await axios.post(`${API}/api/watchlist/toggle/`, {
+        user_id: user.user_id,
+        media_id: id,
+        visibility: visibility,
+      });
+
+      // return res.data.status; // return "added" / "removed"
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const selectedShow = showtimes.find(s => String(s.showing_id) === String(selectedShowing));
 
@@ -195,6 +247,29 @@ function MovieDetail() {
               <span className="md-review-count">{details.total_reviews} review{details.total_reviews !== 1 ? 's' : ''}</span>
             </div>
             {details.description && <p className="md-desc">{details.description}</p>}
+            {user && (
+              <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn btn-dark"
+                  onClick={async () => {
+                    await handleWatchlist('private');
+                    setPrivateStatus(prev => !prev);
+                  }}
+                >
+                  {privateStatus ? "Remove from Private" : "Add to Private"}
+                </button>
+                <button
+                  className="btn btn-dark"
+                  onClick={async () => {
+                    await handleWatchlist('public');
+                    setPublicStatus(prev => !prev);
+                  }}
+                >
+                  {publicStatus ? "Remove from Public" : "Add to Public"}
+                </button> 
+                
+              </div>
+            )}
           </div>
         </div>
 
