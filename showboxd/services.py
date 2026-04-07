@@ -286,14 +286,11 @@ class WatchListService:
     def add_to_watchlist(user_id, media_id, visibility='private'):
         watchlists = WatchListService.get_or_create_user_watchlist(user_id)
         watchlist= watchlists[visibility]
-        try:
-            WatchlistItem.objects.create(
-                watchlist=watchlist,
-                 media_id=media_id
-            )
-            return True
-        except IntegrityError:
-            raise ValueError("This media is already in your watchlist")
+        WatchlistItem.objects.get_or_create(
+            watchlist=watchlist,
+             media_id=media_id
+        )
+        return True
 
     @staticmethod
     def remove_from_watchlist(user_id, media_id, visibility='private'):
@@ -324,6 +321,26 @@ class WatchListService:
     @staticmethod
     def get_public_watchlist(user_id):
         return WatchListService.get_watchlist_items(user_id, visibility='public')
+    
+    @staticmethod
+    def toggle_watchlist(user_id, media_id, visibility='private'):
+        watchlists = WatchListService.get_or_create_user_watchlist(user_id)
+        watchlist = watchlists[visibility]
+
+        item = WatchlistItem.objects.filter(
+            watchlist=watchlist,
+            media_id=media_id
+        ).first()
+
+        if item:
+            item.delete()
+            return "removed"
+        else:
+            WatchlistItem.objects.create(
+                watchlist=watchlist,
+                media_id=media_id
+            )
+            return "added"
 
 
 class WatchHistoryServices:
