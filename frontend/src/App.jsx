@@ -3,7 +3,8 @@ import { AuthProvider } from './Authcontext';
 import Navbar from './Navbar';
 import Home from './Home';
 import Login from './login';
-import MovieDetail from './MovieDetail';
+import MediaDetail from './MediaDetail';
+import AllReviews from './AllReviews';
 import MyBookings from './MyBookings';
 import Trending from './Trending';
 import Watchlist from './Watchlist';
@@ -28,7 +29,8 @@ function AppRoutes() {
             <Route path="/login" element={<Login />} />
             <Route path="/home" element={<Layout><Home /></Layout>} />
             <Route path="/trending" element={<Layout><Trending /></Layout>} />
-            <Route path="/media/:id" element={<Layout><MovieDetail /></Layout>} />
+            <Route path="/media/:id" element={<Layout><MediaDetail /></Layout>} />
+            <Route path="/media/:id/reviews" element={<Layout><AllReviews /></Layout>} />
             <Route path="/bookings" element={<Layout><MyBookings /></Layout>} />
             <Route path="/watchlist" element={<Layout><Watchlist /></Layout>} />
             <Route path="/history" element={<Layout><WatchHistory /></Layout>} />

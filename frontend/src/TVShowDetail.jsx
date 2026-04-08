@@ -2,35 +2,34 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from './Authcontext';
-import BookingModal from './BookingModal';
 
 const API = 'http://127.0.0.1:8000';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
 
-  .md-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
-  .md-wrap {
+  .tv-wrap * { box-sizing: border-box; margin: 0; padding: 0; }
+  .tv-wrap {
     font-family: 'DM Sans', sans-serif;
     background: #f5f3ef;
     min-height: 100vh;
     color: #1a1a1a;
   }
 
-  /* Hero Section */
-  .md-hero {
+  /* Hero Section - Same as Movie */
+  .tv-hero {
     background: linear-gradient(to bottom, #1a1a1a 0%, #2a2a2a 100%);
     color: #fff;
     padding: 32px 0 48px;
   }
-  .md-hero-content {
+  .tv-hero-content {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 40px;
     display: flex;
     gap: 40px;
   }
-  .md-poster {
+  .tv-poster {
     width: 280px;
     min-width: 280px;
     height: 420px;
@@ -38,14 +37,14 @@ const styles = `
     object-fit: cover;
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
-  .md-hero-info { flex: 1; padding-top: 8px; }
-  .md-title-row {
+  .tv-hero-info { flex: 1; padding-top: 8px; }
+  .tv-title-row {
     display: flex;
     align-items: flex-start;
     gap: 16px;
     margin-bottom: 12px;
   }
-  .md-title {
+  .tv-title {
     font-family: 'DM Serif Display', serif;
     font-size: 42px;
     font-weight: 400;
@@ -53,13 +52,13 @@ const styles = `
     color: #fff;
     flex: 1;
   }
-  .md-year {
+  .tv-year {
     font-size: 28px;
     color: rgba(255,255,255,0.6);
     font-weight: 300;
   }
 
-  .md-meta-line {
+  .tv-meta-line {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -68,57 +67,50 @@ const styles = `
     font-size: 15px;
     color: rgba(255,255,255,0.75);
   }
-  .md-meta-sep {
+  .tv-meta-sep {
     width: 4px;
     height: 4px;
     border-radius: 50%;
     background: rgba(255,255,255,0.4);
   }
-  .md-cert {
-    border: 1.5px solid rgba(255,255,255,0.5);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-  }
 
-  .md-rating-row {
+  .tv-rating-row {
     display: flex;
     align-items: center;
     gap: 24px;
     margin-bottom: 24px;
   }
-  .md-rating-box {
+  .tv-rating-box {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  .md-rating-star {
+  .tv-rating-star {
     font-size: 24px;
     color: #f5c518;
   }
-  .md-rating-value {
+  .tv-rating-value {
     font-size: 28px;
     font-weight: 600;
     color: #fff;
   }
-  .md-rating-out {
+  .tv-rating-out {
     font-size: 18px;
     color: rgba(255,255,255,0.5);
     font-weight: 400;
   }
-  .md-rating-count {
+  .tv-rating-count {
     font-size: 14px;
     color: rgba(255,255,255,0.6);
   }
 
-  .md-genres {
+  .tv-genres {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 24px;
   }
-  .md-genre-tag {
+  .tv-genre-tag {
     background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.25);
     padding: 6px 14px;
@@ -128,7 +120,7 @@ const styles = `
     font-weight: 500;
   }
 
-  .md-desc {
+  .tv-desc {
     font-size: 16px;
     line-height: 1.7;
     color: rgba(255,255,255,0.85);
@@ -136,12 +128,12 @@ const styles = `
     max-width: 700px;
   }
 
-  .md-action-btns {
+  .tv-action-btns {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
   }
-  .md-btn {
+  .tv-btn {
     padding: 12px 24px;
     border-radius: 8px;
     font-size: 14px;
@@ -154,42 +146,32 @@ const styles = `
     align-items: center;
     gap: 8px;
   }
-  .md-btn:hover { transform: translateY(-1px); opacity: 0.9; }
-  .md-btn:active { transform: translateY(0); }
-  .md-btn-primary {
-    background: #f5c518;
-    color: #111;
-  }
-  .md-btn-secondary {
-    background: rgba(255,255,255,0.15);
-    color: #fff;
-    border: 1px solid rgba(255,255,255,0.3);
-  }
-  .md-btn-watchlist {
+  .tv-btn:hover { transform: translateY(-1px); opacity: 0.9; }
+  .tv-btn-watchlist {
     background: transparent;
     border: 1.5px solid rgba(255,255,255,0.4);
     color: #fff;
   }
-  .md-btn-watchlist.active {
+  .tv-btn-watchlist.active {
     background: rgba(26, 107, 60, 0.3);
     border-color: #1a6b3c;
   }
 
   /* Main Content */
-  .md-main {
+  .tv-main {
     max-width: 1200px;
     margin: 0 auto;
     padding: 40px 40px 60px;
   }
 
-  .md-section {
+  .tv-section {
     background: #fff;
     border: 1px solid #e4e0d8;
     border-radius: 12px;
     padding: 28px;
     margin-bottom: 24px;
   }
-  .md-section-title {
+  .tv-section-title {
     font-family: 'DM Serif Display', serif;
     font-size: 26px;
     font-weight: 400;
@@ -197,16 +179,91 @@ const styles = `
     margin-bottom: 20px;
   }
 
+  /* Season Selector */
+  .tv-season-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .tv-season-btn {
+    padding: 10px 20px;
+    background: #f5f3ef;
+    border: 1.5px solid #d4d0c8;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tv-season-btn:hover {
+    border-color: #111;
+    color: #111;
+  }
+  .tv-season-btn.active {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+  }
+
+  /* Episode List */
+  .tv-episodes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .tv-episode-card {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: #faf9f7;
+    border: 1px solid #e4e0d8;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tv-episode-card:hover {
+    background: #f5f3ef;
+    border-color: #c4c0b8;
+  }
+  .tv-episode-num {
+    font-size: 20px;
+    font-weight: 700;
+    color: #999;
+    min-width: 40px;
+  }
+  .tv-episode-info {
+    flex: 1;
+  }
+  .tv-episode-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111;
+    margin-bottom: 6px;
+  }
+  .tv-episode-meta {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 8px;
+  }
+  .tv-episode-desc {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #555;
+  }
+
   /* Cast Section */
-  .md-cast-grid {
+  .tv-cast-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 20px;
   }
-  .md-cast-card {
+  .tv-cast-card {
     text-align: center;
   }
-  .md-cast-img {
+  .tv-cast-img {
     width: 100%;
     aspect-ratio: 2/3;
     object-fit: cover;
@@ -214,31 +271,31 @@ const styles = `
     background: #e4e0d8;
     margin-bottom: 8px;
   }
-  .md-cast-name {
+  .tv-cast-name {
     font-size: 14px;
     font-weight: 600;
     color: #111;
     margin-bottom: 4px;
   }
-  .md-cast-role {
+  .tv-cast-role {
     font-size: 13px;
     color: #666;
   }
 
   /* Reviews */
-  .md-review-form {
+  .tv-review-form {
     background: #faf9f7;
     border: 1px solid #e4e0d8;
     border-radius: 10px;
     padding: 20px;
     margin-bottom: 28px;
   }
-  .md-review-input-row {
+  .tv-review-input-row {
     display: flex;
     gap: 12px;
     margin-bottom: 12px;
   }
-  .md-input {
+  .tv-input {
     padding: 12px 16px;
     border: 1px solid #d4d0c8;
     border-radius: 8px;
@@ -248,10 +305,10 @@ const styles = `
     outline: none;
     transition: border-color 0.2s;
   }
-  .md-input:focus { border-color: #111; }
-  .md-input.rating { width: 100px; text-align: center; }
-  .md-input.text { flex: 1; }
-  .md-submit-btn {
+  .tv-input:focus { border-color: #111; }
+  .tv-input.rating { width: 100px; text-align: center; }
+  .tv-input.text { flex: 1; }
+  .tv-submit-btn {
     width: 100%;
     padding: 12px;
     background: #111;
@@ -264,36 +321,36 @@ const styles = `
     cursor: pointer;
     transition: opacity 0.2s;
   }
-  .md-submit-btn:hover { opacity: 0.85; }
-  .md-submit-btn:disabled {
+  .tv-submit-btn:hover { opacity: 0.85; }
+  .tv-submit-btn:disabled {
     background: #ccc;
     cursor: not-allowed;
   }
 
-  .md-reviews-list { display: flex; flex-direction: column; gap: 16px; }
-  .md-review-card {
+  .tv-reviews-list { display: flex; flex-direction: column; gap: 16px; }
+  .tv-review-card {
     background: #faf9f7;
     border: 1px solid #e4e0d8;
     border-radius: 10px;
     padding: 18px 20px;
   }
-  .md-review-header {
+  .tv-review-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
   }
-  .md-review-author {
+  .tv-review-author {
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  .md-review-name {
+  .tv-review-name {
     font-weight: 600;
     font-size: 15px;
     color: #111;
   }
-  .md-review-verified {
+  .tv-review-verified {
     background: #d4f4dd;
     color: #1a6b3c;
     padding: 2px 8px;
@@ -301,7 +358,7 @@ const styles = `
     font-size: 11px;
     font-weight: 600;
   }
-  .md-review-rating {
+  .tv-review-rating {
     background: #111;
     color: #f5c518;
     padding: 4px 12px;
@@ -309,35 +366,35 @@ const styles = `
     font-size: 13px;
     font-weight: 600;
   }
-  .md-review-date {
+  .tv-review-date {
     font-size: 13px;
     color: #999;
     margin-bottom: 10px;
   }
-  .md-review-text {
+  .tv-review-text {
     font-size: 15px;
     line-height: 1.65;
     color: #444;
   }
-  .md-review-likes {
+  .tv-review-likes {
     margin-top: 12px;
     font-size: 13px;
     color: #888;
   }
 
-  /* Similar Media */
-  .md-similar-grid {
+  /* Similar Shows */
+  .tv-similar-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 20px;
   }
-  .md-similar-card {
+  .tv-similar-card {
     text-decoration: none;
     color: inherit;
     transition: transform 0.2s;
   }
-  .md-similar-card:hover { transform: translateY(-4px); }
-  .md-similar-poster {
+  .tv-similar-card:hover { transform: translateY(-4px); }
+  .tv-similar-poster {
     width: 100%;
     aspect-ratio: 2/3;
     object-fit: cover;
@@ -345,28 +402,28 @@ const styles = `
     background: #e4e0d8;
     margin-bottom: 8px;
   }
-  .md-similar-title {
+  .tv-similar-title {
     font-size: 14px;
     font-weight: 500;
     color: #111;
     margin-bottom: 4px;
   }
-  .md-similar-rating {
+  .tv-similar-rating {
     font-size: 13px;
     color: #666;
   }
 
-  .md-empty {
+  .tv-empty {
     text-align: center;
     padding: 40px 20px;
     color: #999;
   }
-  .md-empty-icon {
+  .tv-empty-icon {
     font-size: 48px;
     margin-bottom: 12px;
   }
 
-  .md-loading {
+  .tv-loading {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -375,18 +432,18 @@ const styles = `
     color: #888;
   }
 
-  .md-signin-prompt {
+  .tv-signin-prompt {
     background: #fff7e6;
     border: 1px solid #f5c518;
     border-radius: 10px;
     padding: 20px;
     text-align: center;
   }
-  .md-signin-prompt p {
+  .tv-signin-prompt p {
     margin-bottom: 16px;
     color: #666;
   }
-  .md-signin-link {
+  .tv-signin-link {
     display: inline-block;
     padding: 10px 24px;
     background: #111;
@@ -398,11 +455,11 @@ const styles = `
   }
 
   /* Watchlist Dropdown */
-  .md-watchlist-dropdown {
+  .tv-watchlist-dropdown {
     position: relative;
     display: inline-block;
   }
-  .md-watchlist-menu {
+  .tv-watchlist-menu {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
@@ -414,7 +471,7 @@ const styles = `
     padding: 8px;
     z-index: 100;
   }
-  .md-watchlist-option {
+  .tv-watchlist-option {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -425,35 +482,36 @@ const styles = `
     font-size: 14px;
     color: #333;
   }
-  .md-watchlist-option:hover {
+  .tv-watchlist-option:hover {
     background: #f5f3ef;
   }
-  .md-watchlist-check {
+  .tv-watchlist-check {
     color: #1a6b3c;
     font-weight: 600;
   }
 
   @media (max-width: 768px) {
-    .md-hero-content { flex-direction: column; padding: 0 24px; }
-    .md-poster { width: 100%; max-width: 280px; margin: 0 auto; }
-    .md-title { font-size: 32px; }
-    .md-main { padding: 24px 20px; }
-    .md-cast-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .tv-hero-content { flex-direction: column; padding: 0 24px; }
+    .tv-poster { width: 100%; max-width: 280px; margin: 0 auto; }
+    .tv-title { font-size: 32px; }
+    .tv-main { padding: 24px 20px; }
+    .tv-cast-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
   }
 `;
 
-function MovieDetail() {
+function TVShowDetail() {
   const { id } = useParams();
   const { user } = useAuth();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showtimes, setShowtimes] = useState([]);
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [episodes, setEpisodes] = useState([]);
   const [similarMedia, setSimilarMedia] = useState([]);
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(8);
   const [submitting, setSubmitting] = useState(false);
-  const [showBookingModal, setShowBookingModal] = useState(false);
   const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [watchlistStatus, setWatchlistStatus] = useState({
     private: false,
@@ -470,22 +528,43 @@ function MovieDetail() {
     }
   }, [user, id]);
 
+  useEffect(() => {
+    if (selectedSeason) {
+      fetchEpisodes(selectedSeason);
+    }
+  }, [selectedSeason]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [detailsRes, showtimesRes, similarRes] = await Promise.all([
+      const [detailsRes, seasonsRes, similarRes] = await Promise.all([
         axios.get(`${API}/api/media/${id}/`),
-        axios.get(`${API}/api/movie/showtimes/${id}/`).catch(() => ({ data: [] })),
+        axios.get(`${API}/api/tvshow/${id}/seasons/`),
         axios.get(`${API}/api/media/${id}/similar/`).catch(() => ({ data: [] })),
       ]);
 
       setData(detailsRes.data);
-      setShowtimes(showtimesRes.data);
+      setSeasons(seasonsRes.data);
       setSimilarMedia(similarRes.data);
+
+      // Auto-select first season
+      if (seasonsRes.data.length > 0) {
+        setSelectedSeason(seasonsRes.data[0].season_id);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEpisodes = async (seasonId) => {
+    try {
+      const response = await axios.get(`${API}/api/season/${seasonId}/`);
+      setEpisodes(response.data.episodes || []);
+    } catch (error) {
+      console.error('Error fetching episodes:', error);
+      setEpisodes([]);
     }
   };
 
@@ -559,8 +638,8 @@ function MovieDetail() {
     return (
       <>
         <style>{styles}</style>
-        <div className="md-wrap">
-          <div className="md-loading">Loading...</div>
+        <div className="tv-wrap">
+          <div className="tv-loading">Loading...</div>
         </div>
       </>
     );
@@ -570,10 +649,10 @@ function MovieDetail() {
     return (
       <>
         <style>{styles}</style>
-        <div className="md-wrap">
-          <div className="md-empty">
-            <div className="md-empty-icon">🎬</div>
-            <p>Movie not found</p>
+        <div className="tv-wrap">
+          <div className="tv-empty">
+            <div className="tv-empty-icon">📺</div>
+            <p>TV Show not found</p>
           </div>
         </div>
       </>
@@ -586,62 +665,62 @@ function MovieDetail() {
   return (
     <>
       <style>{styles}</style>
-      <div className="md-wrap">
+      <div className="tv-wrap">
         {/* Hero Section */}
-        <div className="md-hero">
-          <div className="md-hero-content">
+        <div className="tv-hero">
+          <div className="tv-hero-content">
             <img
               src={details.poster_url || '/placeholder-poster.png'}
               alt={details.title}
-              className="md-poster"
+              className="tv-poster"
             />
-            <div className="md-hero-info">
-              <div className="md-title-row">
-                <h1 className="md-title">{details.title}</h1>
+            <div className="tv-hero-info">
+              <div className="tv-title-row">
+                <h1 className="tv-title">{details.title}</h1>
                 {details.release_date && (
-                  <span className="md-year">
+                  <span className="tv-year">
                     ({new Date(details.release_date).getFullYear()})
                   </span>
                 )}
               </div>
 
-              <div className="md-meta-line">
-                {extra?.certification && (
+              <div className="tv-meta-line">
+                {extra?.total_seasons && (
                   <>
-                    <span className="md-cert">{extra.certification}</span>
-                    <span className="md-meta-sep" />
+                    <span>{extra.total_seasons} Season{extra.total_seasons > 1 ? 's' : ''}</span>
+                    <span className="tv-meta-sep" />
                   </>
                 )}
-                {extra?.duration_minutes && (
+                {extra?.status && (
                   <>
-                    <span>{Math.floor(extra.duration_minutes / 60)}h {extra.duration_minutes % 60}m</span>
-                    <span className="md-meta-sep" />
+                    <span>{extra.status}</span>
+                    <span className="tv-meta-sep" />
                   </>
                 )}
                 {details.language && <span>{details.language}</span>}
               </div>
 
-              <div className="md-rating-row">
-                <div className="md-rating-box">
-                  <span className="md-rating-star">★</span>
-                  <span className="md-rating-value">
+              <div className="tv-rating-row">
+                <div className="tv-rating-box">
+                  <span className="tv-rating-star">★</span>
+                  <span className="tv-rating-value">
                     {details.aggregate_rating
                       ? Number(details.aggregate_rating).toFixed(1)
                       : 'N/A'}
                   </span>
-                  <span className="md-rating-out">/10</span>
+                  <span className="tv-rating-out">/10</span>
                 </div>
                 {details.total_reviews > 0 && (
-                  <span className="md-rating-count">
+                  <span className="tv-rating-count">
                     ({details.total_reviews.toLocaleString()} reviews)
                   </span>
                 )}
               </div>
 
               {genres.length > 0 && (
-                <div className="md-genres">
+                <div className="tv-genres">
                   {genres.map((genre) => (
-                    <span key={genre.genre_id} className="md-genre-tag">
+                    <span key={genre.genre_id} className="tv-genre-tag">
                       {genre.genre_name}
                     </span>
                   ))}
@@ -649,23 +728,14 @@ function MovieDetail() {
               )}
 
               {details.description && (
-                <p className="md-desc">{details.description}</p>
+                <p className="tv-desc">{details.description}</p>
               )}
 
-              <div className="md-action-btns">
-                {showtimes.length > 0 && (
-                  <button
-                    className="md-btn md-btn-primary"
-                    onClick={() => setShowBookingModal(true)}
-                  >
-                    🎟 Book Tickets
-                  </button>
-                )}
-
+              <div className="tv-action-btns">
                 {user ? (
-                  <div className="md-watchlist-dropdown">
+                  <div className="tv-watchlist-dropdown">
                     <button
-                      className={`md-btn md-btn-watchlist ${
+                      className={`tv-btn tv-btn-watchlist ${
                         watchlistStatus.private || watchlistStatus.public ? 'active' : ''
                       }`}
                       onClick={() => setShowWatchlistMenu(!showWatchlistMenu)}
@@ -673,9 +743,9 @@ function MovieDetail() {
                       {watchlistStatus.private || watchlistStatus.public ? '✓' : '+'} Watchlist
                     </button>
                     {showWatchlistMenu && (
-                      <div className="md-watchlist-menu">
+                      <div className="tv-watchlist-menu">
                         <div
-                          className="md-watchlist-option"
+                          className="tv-watchlist-option"
                           onClick={() => {
                             toggleWatchlist('private');
                             setShowWatchlistMenu(false);
@@ -683,11 +753,11 @@ function MovieDetail() {
                         >
                           <span>Private Watchlist</span>
                           {watchlistStatus.private && (
-                            <span className="md-watchlist-check">✓</span>
+                            <span className="tv-watchlist-check">✓</span>
                           )}
                         </div>
                         <div
-                          className="md-watchlist-option"
+                          className="tv-watchlist-option"
                           onClick={() => {
                             toggleWatchlist('public');
                             setShowWatchlistMenu(false);
@@ -695,14 +765,14 @@ function MovieDetail() {
                         >
                           <span>Public Watchlist</span>
                           {watchlistStatus.public && (
-                            <span className="md-watchlist-check">✓</span>
+                            <span className="tv-watchlist-check">✓</span>
                           )}
                         </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <Link to="/login" className="md-btn md-btn-secondary">
+                  <Link to="/login" className="tv-btn tv-btn-watchlist">
                     Sign in to add to Watchlist
                   </Link>
                 )}
@@ -712,17 +782,67 @@ function MovieDetail() {
         </div>
 
         {/* Main Content */}
-        <div className="md-main">
+        <div className="tv-main">
+          {/* Seasons & Episodes */}
+          {seasons.length > 0 && (
+            <div className="tv-section">
+              <h2 className="tv-section-title">Episodes</h2>
+
+              <div className="tv-season-selector">
+                {seasons.map((season) => (
+                  <button
+                    key={season.season_id}
+                    className={`tv-season-btn ${
+                      selectedSeason === season.season_id ? 'active' : ''
+                    }`}
+                    onClick={() => setSelectedSeason(season.season_id)}
+                  >
+                    Season {season.season_number}
+                  </button>
+                ))}
+              </div>
+
+              {episodes.length > 0 ? (
+                <div className="tv-episodes-list">
+                  {episodes.map((episode) => (
+                    <div key={episode.episode_id} className="tv-episode-card">
+                      <div className="tv-episode-num">
+                        {episode.episode_number}
+                      </div>
+                      <div className="tv-episode-info">
+                        <div className="tv-episode-title">{episode.title}</div>
+                        <div className="tv-episode-meta">
+                          {episode.air_date && formatDate(episode.air_date)}
+                          {episode.duration_minutes && (
+                            <> • {episode.duration_minutes} min</>
+                          )}
+                        </div>
+                        {episode.description && (
+                          <div className="tv-episode-desc">{episode.description}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="tv-empty">
+                  <div className="tv-empty-icon">🎬</div>
+                  <p>No episodes available for this season</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Cast & Crew */}
           {cast && cast.length > 0 && (
-            <div className="md-section">
-              <h2 className="md-section-title">Cast & Crew</h2>
-              <div className="md-cast-grid">
+            <div className="tv-section">
+              <h2 className="tv-section-title">Cast & Crew</h2>
+              <div className="tv-cast-grid">
                 {cast.slice(0, 8).map((member) => (
-                  <div key={member.cast_crew_id} className="md-cast-card">
-                    <div className="md-cast-img" />
-                    <div className="md-cast-name">{member.person.name}</div>
-                    <div className="md-cast-role">{member.role}</div>
+                  <div key={member.cast_crew_id} className="tv-cast-card">
+                    <div className="tv-cast-img" />
+                    <div className="tv-cast-name">{member.person.name}</div>
+                    <div className="tv-cast-role">{member.role}</div>
                   </div>
                 ))}
               </div>
@@ -730,9 +850,9 @@ function MovieDetail() {
           )}
 
           {/* Reviews Section */}
-          <div className="md-section">
+          <div className="tv-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 className="md-section-title">
+              <h2 className="tv-section-title">
                 User Reviews ({reviews?.length || 0})
               </h2>
               {reviews && reviews.length > 4 && (
@@ -743,8 +863,8 @@ function MovieDetail() {
             </div>
 
             {user ? (
-              <form onSubmit={submitReview} className="md-review-form">
-                <div className="md-review-input-row">
+              <form onSubmit={submitReview} className="tv-review-form">
+                <div className="tv-review-input-row">
                   <input
                     type="number"
                     min="0"
@@ -752,58 +872,58 @@ function MovieDetail() {
                     step="0.1"
                     value={rating}
                     onChange={(e) => setRating(e.target.value)}
-                    className="md-input rating"
+                    className="tv-input rating"
                     placeholder="Rating"
                   />
                   <input
                     type="text"
                     value={reviewText}
                     onChange={(e) => setReviewText(e.target.value)}
-                    className="md-input text"
+                    className="tv-input text"
                     placeholder="Write your review..."
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="md-submit-btn"
+                  className="tv-submit-btn"
                   disabled={submitting}
                 >
                   {submitting ? 'Submitting...' : 'Submit Review'}
                 </button>
               </form>
             ) : (
-              <div className="md-signin-prompt">
+              <div className="tv-signin-prompt">
                 <p>Sign in to write a review</p>
-                <Link to="/login" className="md-signin-link">
+                <Link to="/login" className="tv-signin-link">
                   Sign In
                 </Link>
               </div>
             )}
 
             {reviews && reviews.length > 0 ? (
-              <div className="md-reviews-list">
+              <div className="tv-reviews-list">
                 {reviews.slice(0, 4).map((review) => (
-                  <div key={review.review_id} className="md-review-card">
-                    <div className="md-review-header">
-                      <div className="md-review-author">
-                        <span className="md-review-name">
+                  <div key={review.review_id} className="tv-review-card">
+                    <div className="tv-review-header">
+                      <div className="tv-review-author">
+                        <span className="tv-review-name">
                           {review.name || 'Anonymous'}
                         </span>
                         {review.is_verified && (
-                          <span className="md-review-verified">Verified</span>
+                          <span className="tv-review-verified">Verified</span>
                         )}
                       </div>
-                      <span className="md-review-rating">★ {review.rating}</span>
+                      <span className="tv-review-rating">★ {review.rating}</span>
                     </div>
-                    <div className="md-review-date">
+                    <div className="tv-review-date">
                       {formatDate(review.review_date)}
                     </div>
                     {review.review_text && (
-                      <p className="md-review-text">{review.review_text}</p>
+                      <p className="tv-review-text">{review.review_text}</p>
                     )}
                     {review.like_count > 0 && (
-                      <div className="md-review-likes">
+                      <div className="tv-review-likes">
                         {review.like_count} people found this helpful
                       </div>
                     )}
@@ -811,31 +931,31 @@ function MovieDetail() {
                 ))}
               </div>
             ) : (
-              <div className="md-empty">
-                <div className="md-empty-icon">📝</div>
+              <div className="tv-empty">
+                <div className="tv-empty-icon">📝</div>
                 <p>No reviews yet. Be the first to review!</p>
               </div>
             )}
           </div>
 
-          {/* Similar Movies */}
+          {/* Similar Shows */}
           {similarMedia && similarMedia.length > 0 && (
-            <div className="md-section">
-              <h2 className="md-section-title">More Like This</h2>
-              <div className="md-similar-grid">
+            <div className="tv-section">
+              <h2 className="tv-section-title">More Like This</h2>
+              <div className="tv-similar-grid">
                 {similarMedia.map((item) => (
                   <Link
                     key={item.media_id}
                     to={`/media/${item.media_id}`}
-                    className="md-similar-card"
+                    className="tv-similar-card"
                   >
                     <img
                       src={item.poster_url || '/placeholder-poster.png'}
                       alt={item.title}
-                      className="md-similar-poster"
+                      className="tv-similar-poster"
                     />
-                    <div className="md-similar-title">{item.title}</div>
-                    <div className="md-similar-rating">
+                    <div className="tv-similar-title">{item.title}</div>
+                    <div className="tv-similar-rating">
                       ★{' '}
                       {item.aggregate_rating
                         ? Number(item.aggregate_rating).toFixed(1)
@@ -847,22 +967,9 @@ function MovieDetail() {
             </div>
           )}
         </div>
-
-        {/* Booking Modal */}
-        {showBookingModal && (
-          <BookingModal
-            showtimes={showtimes}
-            mediaId={id}
-            mediaTitle={details.title}
-            onClose={() => {
-              setShowBookingModal(false);
-              fetchData();
-            }}
-          />
-        )}
       </div>
     </>
   );
 }
 
-export default MovieDetail;
+export default TVShowDetail;
