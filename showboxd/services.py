@@ -110,7 +110,7 @@ class MediaService:
 
             cast = CastCrew.objects.filter(media_id=media_id).select_related('person')
 
-            #Reviews listed by verified users first, then by likes & date ─
+            # Reviews listed by verified users first, then by likes & date
             with connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT r.review_id, u.name, u.is_verified,
@@ -147,12 +147,34 @@ class MediaService:
     def get_all_genres():
         return Genre.objects.all().order_by('genre_name')
 
+    @staticmethod
+    def get_community_picks(limit=24):
+        """
+        Community score = aggregate_rating * LOG(total_reviews + 1)
+        Works on small datasets — no minimum review threshold.
+        Only includes released titles with at least one review.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT media_id, title, media_type, aggregate_rating,
+                       total_reviews, poster_url, release_date,
+                       ROUND(
+                           (aggregate_rating * LOG(total_reviews + 1))::numeric, 2
+                       ) AS community_score
+                FROM media
+                WHERE aggregate_rating IS NOT NULL
+                  AND total_reviews > 0
+                  AND release_date <= CURRENT_DATE
+                ORDER BY community_score DESC
+                LIMIT %s
+            """, [limit])
+            return dictfetchall(cursor)
 
 
 class ReviewService:
     @staticmethod
     def post_review(user_id, media_id, rating, review_text):
-        #triggers fire to update aggregate_rating and total_reviews
+        # triggers fire to update aggregate_rating and total_reviews
         try:
             user = Users.objects.get(pk=user_id)
             review = Review.objects.create(
@@ -200,11 +222,9 @@ class BookingService:
 
     @staticmethod
     def cancel_booking(booking_id):
-        #Triggers trg_increment_seats to add back the seats to showing
+        # Triggers trg_increment_seats to add back the seats to showing
         try:
             booking = Booking.objects.get(pk=booking_id)
-            if booking.booking_status == 'cancelled':
-                raise ValueError("Booking is already cancelled.")
             booking.booking_status = 'cancelled'
             booking.save()
             return True
@@ -213,20 +233,17 @@ class BookingService:
 
     @staticmethod
     def get_showtimes_for_movie(movie_id):
-        # Query 5 — showtimes for a specific movie
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT sh.showing_id, m.title,
-                       c.name  AS cinema_name, c.city AS cinema_location,
+                SELECT sh.showing_id, sh.show_date, sh.show_time,
+                       sh.available_seats, sh.price,
                        sc.screen_name, sc.screen_type,
-                       sh.show_date, sh.show_time,
-                       sh.available_seats, sh.price
+                       c.name  AS cinema_name,
+                       c.city  AS cinema_location
                 FROM showing sh
-                JOIN screen sc  ON sh.screen_id= sc.screen_id
-                JOIN cinema c   ON sc.cinema_id= c.cinema_id
-                JOIN movie mo   ON sh.media_id = mo.media_id
-                JOIN media m    ON mo.media_id = m.media_id
-                WHERE mo.media_id = %s
+                JOIN screen sc ON sh.screen_id = sc.screen_id
+                JOIN cinema c  ON sc.cinema_id  = c.cinema_id
+                WHERE sh.media_id = %s
                   AND sh.available_seats > 0
                 ORDER BY sh.show_date, sh.show_time
             """, [movie_id])
@@ -234,338 +251,300 @@ class BookingService:
 
     @staticmethod
     def get_user_bookings(user_id):
-        # Query 7 — full booking history
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT b.booking_id,
-                       m.media_id,
-                       m.title        AS media_title,
-                       m.poster_url,
-                       c.name         AS cinema_name,
-                       c.city         AS cinema_location,
+                SELECT b.booking_id, b.seats_booked, b.total_price,
+                       b.booking_time, b.booking_status,
+                       sh.showing_id, sh.show_date, sh.show_time,
                        sc.screen_name,
-                       sh.showing_id,
-                       sh.show_date,
-                       sh.show_time,
-                       b.seats_booked,
-                       b.total_price,
-                       b.booking_status,
-                       b.booking_time
+                       c.name  AS cinema_name,
+                       c.city  AS cinema_location,
+                       m.media_id, m.title AS media_title, m.poster_url
                 FROM booking b
                 JOIN showing sh ON b.showing_id  = sh.showing_id
-                JOIN screen sc  ON sh.screen_id   = sc.screen_id
-                JOIN cinema c   ON sc.cinema_id   = c.cinema_id
-                JOIN movie mo   ON sh.media_id    = mo.media_id
-                JOIN media m    ON mo.media_id     = m.media_id
+                JOIN screen  sc ON sh.screen_id  = sc.screen_id
+                JOIN cinema  c  ON sc.cinema_id  = c.cinema_id
+                JOIN movie   mo ON sh.media_id   = mo.media_id
+                JOIN media   m  ON mo.media_id   = m.media_id
                 WHERE b.user_id = %s
                 ORDER BY b.booking_time DESC
             """, [user_id])
             return dictfetchall(cursor)
 
-class WatchListService:
-    @staticmethod
-    def get_or_create_user_watchlist(user_id):
-        user=Users.objects.get(pk=user_id)
-        private_watchlist, _ = Watchlist.objects.get_or_create(
-            user=user,
-            visibility='private',
-            defaults={'name': f"{user.name}'s Private Watchlist"}
-        )
 
-        public_watchlist, _ = Watchlist.objects.get_or_create(
-            user=user,
-            visibility='public',
-            defaults={'name': f"{user.name}'s Public Watchlist"}
-        )
-        return {
-            'private': private_watchlist,
-            'public': public_watchlist
-        }
+class WatchListService:
 
     @staticmethod
     def add_to_watchlist(user_id, media_id, visibility='private'):
-        watchlists = WatchListService.get_or_create_user_watchlist(user_id)
-        watchlist= watchlists[visibility]
+        watchlist, _ = Watchlist.objects.get_or_create(
+            user_id=user_id,
+            visibility=visibility,
+            defaults={'name': f"{visibility.capitalize()} Watchlist"}
+        )
         WatchlistItem.objects.get_or_create(
             watchlist=watchlist,
-             media_id=media_id
+            media_id=media_id,
         )
-        return True
 
     @staticmethod
     def remove_from_watchlist(user_id, media_id, visibility='private'):
-        watchlists = WatchListService.get_or_create_user_watchlist(user_id)
-        watchlist= watchlists[visibility]
-        deleted, _ = WatchlistItem.objects.filter(
+        try:
+            watchlist = Watchlist.objects.get(user_id=user_id, visibility=visibility)
+            deleted, _ = WatchlistItem.objects.filter(
+                watchlist=watchlist, media_id=media_id
+            ).delete()
+            return deleted > 0
+        except Watchlist.DoesNotExist:
+            return False
+
+    @staticmethod
+    def toggle_watchlist(user_id, media_id, visibility='private'):
+        watchlist, _ = Watchlist.objects.get_or_create(
+            user_id=user_id,
+            visibility=visibility,
+            defaults={'name': f"{visibility.capitalize()} Watchlist"}
+        )
+        item, created = WatchlistItem.objects.get_or_create(
             watchlist=watchlist,
-             media_id=media_id
-        ).delete()
-        if deleted == 0:
-            raise ValueError("This media is not in your watchlist")
-        return True
+            media_id=media_id,
+        )
+        if not created:
+            item.delete()
+            return 'removed'
+        return 'added'
+
     @staticmethod
     def get_watchlist_items(user_id, visibility='private'):
-        watchlists = WatchListService.get_or_create_user_watchlist(user_id)
-        watchlist= watchlists[visibility]
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT m.media_id, m.title, m.media_type, m.poster_url,
-                       m.aggregate_rating, m.release_date, wi.added_at
+                SELECT m.media_id, m.title, m.poster_url, m.media_type,
+                       m.aggregate_rating, wi.added_at
                 FROM watchlist_item wi
-                JOIN media m ON wi.media_id = m.media_id
-                WHERE wi.watchlist_id = %s
+                JOIN watchlist wl ON wi.watchlist_id = wl.watchlist_id
+                JOIN media m      ON wi.media_id     = m.media_id
+                WHERE wl.user_id    = %s
+                  AND wl.visibility = %s
                 ORDER BY wi.added_at DESC
-            """, [watchlist.watchlist_id])
+            """, [user_id, visibility])
             return dictfetchall(cursor)
 
     @staticmethod
     def get_public_watchlist(user_id):
-        return WatchListService.get_watchlist_items(user_id, visibility='public')
-    
-    @staticmethod
-    def toggle_watchlist(user_id, media_id, visibility='private'):
-        watchlists = WatchListService.get_or_create_user_watchlist(user_id)
-        watchlist = watchlists[visibility]
-
-        item = WatchlistItem.objects.filter(
-            watchlist=watchlist,
-            media_id=media_id
-        ).first()
-
-        if item:
-            item.delete()
-            return "removed"
-        else:
-            WatchlistItem.objects.create(
-                watchlist=watchlist,
-                media_id=media_id
-            )
-            return "added"
+        return WatchListService.get_watchlist_items(user_id, 'public')
 
 
 class WatchHistoryServices:
+
     @staticmethod
     def record_watch(user_id, media_id, episode_id=None):
-        try:
-            WatchHistory.objects.create(
-                user_id=user_id,
-                media_id=media_id,
-                episode_id=episode_id
-            )
-            return True
-        except Exception as e:
-            raise ValueError(str(e))
+        WatchHistory.objects.create(
+            user_id=user_id,
+            media_id=media_id,
+            episode_id=episode_id,
+        )
+
     @staticmethod
     def get_watch_history(user_id, limit=50):
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT DISTINCT ON (wh.media_id)
-                       wh.media_id, m.title, m.poster_url, m.media_type,
-                       m.aggregate_rating, wh.watched_at,
-                       e.episode_id, e.title AS episode_title, e.episode_number,
-                       s.season_number
+                SELECT wh.watched_at, wh.episode_id,
+                       m.media_id, m.title, m.poster_url, m.media_type,
+                       m.aggregate_rating
                 FROM watch_history wh
                 JOIN media m ON wh.media_id = m.media_id
-                LEFT JOIN episode e ON wh.episode_id = e.episode_id
-                LEFT JOIN season s ON e.season_id = s.season_id
                 WHERE wh.user_id = %s
-                ORDER BY wh.media_id, wh.watched_at DESC
+                ORDER BY wh.watched_at DESC
                 LIMIT %s
             """, [user_id, limit])
             return dictfetchall(cursor)
 
-    @staticmethod
-    def get_recently_watched(user_id, media_type=None, limit=10):
-        """Get recently watched content"""
-        sql = """
-            SELECT DISTINCT ON (wh.media_id)
-                   wh.media_id, m.title, m.poster_url, m.media_type,
-                   m.aggregate_rating, wh.watched_at
-            FROM watch_history wh
-            JOIN media m ON wh.media_id = m.media_id
-            WHERE wh.user_id = %s
-        """
-        params = [user_id]
-
-        if media_type:
-            sql += " AND m.media_type = %s"
-            params.append(media_type)
-
-        sql += " ORDER BY wh.media_id, wh.watched_at DESC LIMIT %s"
-        params.append(limit)
-
-        with connection.cursor() as cursor:
-            cursor.execute(sql, params)
-            return dictfetchall(cursor)
 
 class ReviewInteractionService:
+
     @staticmethod
     def like_review(user_id, review_id):
-        try:
-            ReviewLike.objects.create(
-                user_id=user_id,
-                review_id=review_id
-            )
-            return True
-        except Exception as e:
-            raise ValueError(str(e))
+        ReviewLike.objects.get_or_create(user_id=user_id, review_id=review_id)
+
     @staticmethod
     def unlike_review(user_id, review_id):
         deleted, _ = ReviewLike.objects.filter(
-            user_id=user_id,
-            review_id=review_id
+            user_id=user_id, review_id=review_id
         ).delete()
-        if deleted == 0:
-            raise ValueError("You have not liked this review")
-        return True
-    @staticmethod
-    def get_review_like_count(review_id):
-        return ReviewLike.objects.filter(review_id=review_id).count()
+        return deleted > 0
 
-    @staticmethod
-    def has_user_liked_review(user_id, review_id):
-        return ReviewLike.objects.filter(user_id=user_id, review_id=review_id).exists()
 
 class PlatformService:
+
     @staticmethod
     def get_platforms_for_media(media_id, region=None):
-        sql="""
-        SELECT p.platform_id, p.platform_name, p.platform_type, p.logo_url,
+        sql = """
+            SELECT p.platform_id, p.platform_name, p.platform_type, p.logo_url,
                    mp.region, mp.availability_date
             FROM media_platform mp
             JOIN platform p ON mp.platform_id = p.platform_id
             WHERE mp.media_id = %s
         """
-        params=[media_id]
+        params = [media_id]
         if region:
             sql += " AND mp.region = %s"
             params.append(region)
-        sql+= "ORDER BY p.platform_name"
+        sql += " ORDER BY p.platform_name"
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             return dictfetchall(cursor)
 
     @staticmethod
-    def get_media_on_platform(platform_id, region=None, media_type=None):
-        sql="""
-        SELECT m.media_id, m.title, m.media_type, m.poster_url, m.aggregate_rating, m.release_date, mp.region
-        FROM media_platform mp
-        JOIN media m ON mp.media_id = m.media_id
-        WHERE mp.platform_id = %s
+    def get_content_for_platform(platform_id, region=None, media_types=None):
+        sql = """
+            SELECT m.media_id, m.title, m.media_type, m.poster_url,
+                   m.aggregate_rating, m.release_date, mp.region
+            FROM media_platform mp
+            JOIN media m ON mp.media_id = m.media_id
+            WHERE mp.platform_id = %s
         """
-        params=[platform_id]
+        params = [platform_id]
         if region:
-            sql+= " AND mp.region = %s"
+            sql += " AND mp.region = %s"
             params.append(region)
-        if media_type:
-            sql+= " AND m.media_type = %s"
-            params.append(media_type)
-
-        sql+= " ORDER BY m.aggregate_rating DESC NULLS LAST"
+        if media_types:
+            placeholders = ','.join(['%s'] * len(media_types))
+            sql += f" AND m.media_type IN ({placeholders})"
+            params.extend(media_types)
+        sql += " ORDER BY m.aggregate_rating DESC NULLS LAST"
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             return dictfetchall(cursor)
 
+    # kept for backwards compat
+    get_media_on_platform = get_content_for_platform
+
+
 class TVMetadataService:
+
     @staticmethod
     def get_episodes_for_season(season_id):
         return Episode.objects.filter(season_id=season_id).order_by('episode_number')
+
     @staticmethod
     def get_seasons_with_episodes(season_id):
-        season= Season.objects.get(pk=season_id)
-        episodes= TVMetadataService.get_episodes_for_season(season_id)
+        season   = Season.objects.get(pk=season_id)
+        episodes = TVMetadataService.get_episodes_for_season(season_id)
         return {
             "season": {
-                "season_id": season.season_id,
-                "season_number": season.season_number,
-                "release_date": season.release_date,
-                "total_episodes": season.total_episodes
+                "season_id":      season.season_id,
+                "season_number":  season.season_number,
+                "release_date":   season.release_date,
+                "total_episodes": season.total_episodes,
             },
-            "episodes": list(episodes.values())
+            "episodes": list(episodes.values()),
         }
+
     @staticmethod
     def get_next_episode(media_id, current_episode_id):
         current = Episode.objects.get(pk=current_episode_id)
-        next_ep=Episode.objects.filter(
+        next_ep = Episode.objects.filter(
             season=current.season,
-            episode_number= current.episode_number+1
+            episode_number=current.episode_number + 1
         ).first()
         if next_ep:
             return next_ep
-
-        next_season=Season.objects.filter(
+        next_season = Season.objects.filter(
             media_id=media_id,
-            season_number=current.season.season_number+1
+            season_number=current.season.season_number + 1
         ).first()
-
         if next_season:
-            return Episode.objects.filter(
-                season=next_season,
-                episode_number=1
-            ).first()
-
+            return Episode.objects.filter(season=next_season, episode_number=1).first()
         return None
+
     @staticmethod
     def get_all_seasons_for_show(media_id):
         with connection.cursor() as cursor:
             cursor.execute("""
-            SELECT s.season_id, s.season_number, s.release_date,
-                   s.total_episodes, COUNT(e.episode_id) AS episode_count
-            FROM season s
-            LEFT JOIN episode e ON s.season_id = e.season_id
-            WHERE s.media_id = %s
-            GROUP BY s.season_id, s.season_number, s.release_date, s.total_episodes
-            ORDER BY s.season_number
-        """, [media_id])
+                SELECT s.season_id, s.season_number, s.release_date,
+                       s.total_episodes, COUNT(e.episode_id) AS episode_count
+                FROM season s
+                LEFT JOIN episode e ON s.season_id = e.season_id
+                WHERE s.media_id = %s
+                GROUP BY s.season_id, s.season_number, s.release_date, s.total_episodes
+                ORDER BY s.season_number
+            """, [media_id])
             return dictfetchall(cursor)
+
+
 class RecommendationService:
+
     @staticmethod
     def get_similar_media(media_id, limit=10):
+        """
+        Returns similar media from the media_similarity table.
+        Falls back to genre-based similarity if no similarity scores exist
+        for this media_id (the table only has 10 pairs currently).
+        """
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT m.media_id, m.title, m.poster_url, m.media_type, m.aggregate_rating, ms.similarity_score
+            cursor.execute("""
+                SELECT m.media_id, m.title, m.poster_url, m.media_type,
+                       m.aggregate_rating, ms.similarity_score
                 FROM media_similarity ms
-                JOIN media m ON(
+                JOIN media m ON (
                     CASE
                         WHEN ms.media_id_1 = %s THEN ms.media_id_2
                         ELSE ms.media_id_1
                     END = m.media_id
                 )
-                WHERE ms.media_id_1=%s OR ms.media_id_2=%s
+                WHERE ms.media_id_1 = %s OR ms.media_id_2 = %s
                 ORDER BY ms.similarity_score DESC
                 LIMIT %s
-                """, [media_id, media_id, media_id, limit]
-            )
-            return dictfetchall(cursor)
+            """, [media_id, media_id, media_id, limit])
+            results = dictfetchall(cursor)
+
+        # Fallback: if no similarity scores exist, use shared genres
+        if not results:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT DISTINCT m.media_id, m.title, m.poster_url,
+                           m.media_type, m.aggregate_rating,
+                           NULL::numeric AS similarity_score
+                    FROM media m
+                    JOIN media_genre mg  ON m.media_id  = mg.media_id
+                    WHERE mg.genre_id IN (
+                        SELECT genre_id FROM media_genre WHERE media_id = %s
+                    )
+                    AND m.media_id <> %s
+                    ORDER BY m.aggregate_rating DESC NULLS LAST
+                    LIMIT %s
+                """, [media_id, media_id, limit])
+                results = dictfetchall(cursor)
+
+        return results
 
     @staticmethod
     def get_recommendation_by_genre(user_id, limit=20):
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                WITH user_genres AS(
+            cursor.execute("""
+                WITH user_genres AS (
                     SELECT DISTINCT mg.genre_id
                     FROM watch_history wh
-                    JOIN media_genre mg ON wh.media_id=mg.media_id
-                    WHERE wh.user_id=%s
-                    )
-                SELECT m.media_id, m.title, m.poster_url, m.media_type, m.aggregate_rating, m.release_date, COUNT(DISTINCT mg.genre_id) AS genre_match_count
+                    JOIN media_genre mg ON wh.media_id = mg.media_id
+                    WHERE wh.user_id = %s
+                )
+                SELECT m.media_id, m.title, m.poster_url, m.media_type,
+                       m.aggregate_rating, m.release_date,
+                       COUNT(DISTINCT mg.genre_id) AS genre_match_count
                 FROM media m
                 JOIN media_genre mg ON m.media_id = mg.media_id
                 WHERE mg.genre_id IN (SELECT genre_id FROM user_genres)
-                   AND m.media_id NOT IN(
-                       SELECT media_id FROM watch_history WHERE user_id=%s
-                   )
+                  AND m.media_id NOT IN (
+                      SELECT media_id FROM watch_history WHERE user_id = %s
+                  )
                 GROUP BY m.media_id
                 ORDER BY genre_match_count DESC, m.aggregate_rating DESC
                 LIMIT %s
-                """,[user_id, user_id, limit]
-            )
+            """, [user_id, user_id, limit])
             return dictfetchall(cursor)
+
     @staticmethod
-    def get_trending_media(media_type=None, region=None, limit=20):
-        """Get trending media based on recent watch history and ratings"""
+    def get_trending_media(media_type=None, limit=20):
+        """Trending = most watched in last 7 days, then by rating."""
         sql = """
             SELECT m.media_id, m.title, m.poster_url, m.media_type,
                    m.aggregate_rating, m.total_reviews,
@@ -576,29 +555,25 @@ class RecommendationService:
             WHERE m.aggregate_rating IS NOT NULL
         """
         params = []
-
         if media_type:
             sql += " AND m.media_type = %s"
             params.append(media_type)
-
         sql += """
             GROUP BY m.media_id
             ORDER BY recent_watch_count DESC, m.aggregate_rating DESC
             LIMIT %s
         """
         params.append(limit)
-
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             return dictfetchall(cursor)
+
     @staticmethod
     def get_recommendation_for_user(user_id, limit=20):
-        genre_recs=RecommendationService.get_recommendation_by_genre(user_id,limit=10)
-        trending= RecommendationService.get_trending_media(limit=10)
-
-        seen_ids= set()
-        combined=[]
-        for item in genre_recs+trending:
+        genre_recs = RecommendationService.get_recommendation_by_genre(user_id, limit=10)
+        trending   = RecommendationService.get_trending_media(limit=10)
+        seen_ids, combined = set(), []
+        for item in genre_recs + trending:
             if item['media_id'] not in seen_ids:
                 combined.append(item)
                 seen_ids.add(item['media_id'])
@@ -606,34 +581,60 @@ class RecommendationService:
                 break
         return combined
 
+
 class ShowingService:
+
     @staticmethod
-    def get_showtimes_by_location(city=None, region = None, date = None):
-        sql ="""
-        SELECT sh.showing_id, m.title, m.poster_url,
-               c.name AS cinema_name, c.city, c.region, c.location,
-               sc.screen_name, sc.screen_type,
-               sh.show_date, sh.show_time, sh.available_seats, sh.price
-        FROM showing sh
-        JOIN screen sc ON sh.screen_id = sc.screen_id
-        JOIN cinema c ON sc.cinema_id = c.cinema_id
-        JOIN movie mo ON sh.media_id = mo.media_id
-        JOIN media m ON mo.media_id = m.media_id
-        WHERE sh.available_seats > 0
-    """
-        params=[]
+    def get_showtimes_by_location(city=None, region=None, date=None):
+        sql = """
+            SELECT sh.showing_id, m.media_id, m.title, m.poster_url,
+                   m.aggregate_rating,
+                   c.name AS cinema_name, c.city, c.region, c.location,
+                   sc.screen_name, sc.screen_type,
+                   sh.show_date, sh.show_time, sh.available_seats, sh.price
+            FROM showing sh
+            JOIN screen sc ON sh.screen_id = sc.screen_id
+            JOIN cinema c  ON sc.cinema_id  = c.cinema_id
+            JOIN movie  mo ON sh.media_id   = mo.media_id
+            JOIN media  m  ON mo.media_id   = m.media_id
+            WHERE sh.available_seats > 0
+        """
+        params = []
         if city:
             sql += " AND c.city = %s"
             params.append(city)
         if region:
             sql += " AND c.region = %s"
             params.append(region)
-
         if date:
             sql += " AND sh.show_date = %s"
             params.append(date)
-
         sql += " ORDER BY sh.show_date, sh.show_time"
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             return dictfetchall(cursor)
+
+    @staticmethod
+    def get_now_showing(limit=20):
+        """
+        Returns distinct movies that have at least one showing with
+        available seats, ordered by rating. Single query — no N+1.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT ON (m.media_id)
+                       m.media_id, m.title, m.poster_url,
+                       m.aggregate_rating, m.total_reviews,
+                       m.release_date, m.language
+                FROM media m
+                JOIN movie   mo ON m.media_id   = mo.media_id
+                JOIN showing sh ON sh.media_id  = mo.media_id
+                WHERE sh.available_seats > 0
+                ORDER BY m.media_id, m.aggregate_rating DESC NULLS LAST
+                LIMIT %s
+            """, [limit])
+            rows = dictfetchall(cursor)
+
+        # Re-sort by rating after DISTINCT ON
+        rows.sort(key=lambda r: float(r['aggregate_rating'] or 0), reverse=True)
+        return rows

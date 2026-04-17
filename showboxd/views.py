@@ -5,7 +5,11 @@ from .serializers import (
     MediaDTO, ReviewDTO, TVShowDTO,
     CastCrewDTO, MovieDTO, GenreDTO
 )
-from .services import BookingService, MediaService, PlatformService, RecommendationService, ReviewInteractionService, ReviewService, TVMetadataService, WatchHistoryServices, WatchListService
+from .services import (
+    BookingService, MediaService, PlatformService, RecommendationService,
+    ReviewInteractionService, ReviewService, TVMetadataService,
+    WatchHistoryServices, WatchListService, ShowingService
+)
 from .authentication import create_user, verify_jwt_token, generate_jwt_token
 from django.contrib.auth.hashers import make_password, check_password
 from .models import Episode, Season, Users
@@ -30,7 +34,6 @@ def get_media_catalog(request):
     return paginatior.get_paginated_response(serializer.data)
 
 
-
 @api_view(['GET'])
 def search_media(request):
     """
@@ -48,7 +51,6 @@ def search_media(request):
         genre=genre or None,
         top_rated=top_rated,
     )
-    # Raw SQL returns list of dicts; ORM fallback returns a queryset
     if isinstance(results, list):
         return Response(results)
     return Response(MediaDTO(results, many=True).data)
@@ -77,7 +79,6 @@ def get_media_details(request, media_id):
         "details": MediaDTO(data['media']).data,
         "extra":   extra_data,
         "cast":    CastCrewDTO(data['cast'], many=True).data,
-        # raw_reviews is already a list of dicts from Query 9 raw SQL
         "reviews": data['raw_reviews'],
     })
 
@@ -101,11 +102,11 @@ def submit_review(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 # ── Booking endpoints ──────────────────────────────────────────────────────
 
 @api_view(['GET'])
 def get_movie_showtimes(request, movie_id):
-    # Query 5 — raw SQL, returns list of dicts directly
     showings = BookingService.get_showtimes_for_movie(movie_id)
     return Response(showings)
 
@@ -133,14 +134,42 @@ def cancel_ticket_booking(request, booking_id):
 
 @api_view(['GET'])
 def get_user_bookings(request, user_id):
-    # Query 7 — raw SQL, returns list of dicts directly
     bookings = BookingService.get_user_bookings(user_id)
     return Response(bookings)
+
+
+# ── Now Showing ────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+def get_now_showing(request):
+    """
+    Returns distinct movies that currently have at least one showing
+    with available seats. Single query — no N+1.
+    """
+    limit = int(request.query_params.get('limit', 20))
+    movies = ShowingService.get_now_showing(limit=limit)
+    return Response(movies)
+
+
+# ── Community Picks ────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+def get_community_picks(request):
+    """
+    Ranked by community score = aggregate_rating * LOG(total_reviews + 1).
+    Works on small datasets — no minimum review count required.
+    """
+    limit = int(request.query_params.get('limit', 24))
+    picks = MediaService.get_community_picks(limit=limit)
+    return Response(picks)
+
+
+# ── Auth ───────────────────────────────────────────────────────────────────
 
 @api_view(['POST'])
 def register(request):
     try:
-        user=create_user(
+        user = create_user(
             name=request.data.get('name'),
             email=request.data.get('email'),
             password=request.data.get('password'),
@@ -150,15 +179,16 @@ def register(request):
         token = generate_jwt_token(user)
         return Response({
             "user_id": user.user_id,
-            "token": token,
+            "token":   token,
             'message': "User registered successfully"
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 def login(request):
-    email = request.data.get('email')
+    email    = request.data.get('email')
     password = request.data.get('password')
     try:
         user = Users.objects.get(email=email)
@@ -166,148 +196,177 @@ def login(request):
             token = generate_jwt_token(user)
             return Response({
                 "user_id": user.user_id,
-                "token": token,
-                'email': user.email,
-                'name': user.name,
-                'role': user.role
+                "token":   token,
+                'email':   user.email,
+                'name':    user.name,
+                'role':    user.role,
             })
-        else:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
     except Users.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 def logout(request):
-    # Since we're using JWTs, logout can be handled client-side by deleting the token.
-    # Optionally, we could implement token blacklisting here if needed.
     return Response({"message": "Logout successful. Please delete the token on the client side."})
+
 
 @api_view(['GET'])
 def verify_token_view(request):
-    auth_header=request.headers.get('Authorization')
+    auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return Response({"error": "Authorization header missing or invalid"}, status=status.HTTP_401_UNAUTHORIZED)
-    token= auth_header.split(' ')[1]
-    user = verify_jwt_token(token)
-
+    token = auth_header.split(' ')[1]
+    user  = verify_jwt_token(token)
     if user:
         return Response({
-            "user_id": user.user_id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role,
-            "is_verified": user.is_verified
+            "user_id":     user.user_id,
+            "email":       user.email,
+            "name":        user.name,
+            "role":        user.role,
+            "is_verified": user.is_verified,
         })
     return Response({"error": "Invalid or expired token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+# ── Watchlist ──────────────────────────────────────────────────────────────
 
 @api_view(['POST'])
 def add_to_watchlist(request):
     try:
         WatchListService.add_to_watchlist(
-            user_id     = request.data.get('user_id'),
-            media_id    = request.data.get('media_id'),
-            visibility  = request.data.get('visibility', 'private')
-
+            user_id    = request.data.get('user_id'),
+            media_id   = request.data.get('media_id'),
+            visibility = request.data.get('visibility', 'private'),
         )
         return Response({"status": "success"}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['DELETE'])
 def remove_from_watchlist(request):
     success = WatchListService.remove_from_watchlist(
-        user_id=request.data.get('user_id'),
-        media_id=request.data.get('media_id'),
-        visibility=request.data.get('visibility', 'private')
+        user_id    = request.data.get('user_id'),
+        media_id   = request.data.get('media_id'),
+        visibility = request.data.get('visibility', 'private'),
     )
     if success:
         return Response({"message": "Removed from watchlist successfully"})
     return Response({"error": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 @api_view(['GET'])
 def get_my_watchlist(request, user_id, visibility):
-    """Get user's own watchlist (private or public)"""
     items = WatchListService.get_watchlist_items(user_id, visibility)
     return Response(items)
 
+
 @api_view(['GET'])
 def get_user_public_watchlist(request, user_id):
-    """Get another user's public watchlist"""
     items = WatchListService.get_public_watchlist(user_id)
     return Response(items)
+
+
+@api_view(['POST'])
+def toggle_watchlist(request):
+    result = WatchListService.toggle_watchlist(
+        user_id    = request.data.get('user_id'),
+        media_id   = request.data.get('media_id'),
+        visibility = request.data.get('visibility', 'private'),
+    )
+    return Response({"status": result})
+
+
+# ── Watch History ──────────────────────────────────────────────────────────
 
 @api_view(['POST'])
 def record_watch(request):
     try:
         WatchHistoryServices.record_watch(
-            user_id=request.data.get('user_id'),
-            media_id=request.data.get('media_id'),
-            episode_id=request.data.get('episode_id')
+            user_id    = request.data.get('user_id'),
+            media_id   = request.data.get('media_id'),
+            episode_id = request.data.get('episode_id'),
         )
-        return Response({'status':'success'}, status=status.HTTP_201_CREATED)
+        return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
     except Exception as e:
-        return Response({'error':str(e)}, status = status.HTTP_400_BAD_REQUEST)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['GET'])
 def get_watch_history(request, user_id):
-    limit = request.query_params.get('limit', 50)
+    limit   = request.query_params.get('limit', 50)
     history = WatchHistoryServices.get_watch_history(user_id, int(limit))
-
     return Response(history)
 
+
+@api_view(['GET'])
+def get_user_watch_history(request, user_id):
+    limit   = request.query_params.get('limit', 50)
+    history = WatchHistoryServices.get_watch_history(user_id, int(limit))
+    return Response(history)
+
+
+# ── Reviews ────────────────────────────────────────────────────────────────
+
 @api_view(['POST'])
-def like_review(request):
+def like_review(request, review_id):
     try:
         ReviewInteractionService.like_review(
-            user_id=request.data.get('user_id'),
-            review_id=request.data.get('review_id')
+            user_id   = request.data.get('user_id'),
+            review_id = review_id,
         )
-        return Response({'status':'success'}, status= status.HTTP_201_CREATED)
+        return Response({'status': 'success'}, status=status.HTTP_201_CREATED)
     except Exception as e:
-        return Response({'error':str(e)}, status = status.HTTP_400_BAD_REQUEST)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['DELETE'])
-def unlike_review(request):
-    success= ReviewInteractionService.unlike_review(
-        user_id = request.data.get('user_id'),
-        review_id = request.data.get('review_id')
+def unlike_review(request, review_id):
+    success = ReviewInteractionService.unlike_review(
+        user_id   = request.data.get('user_id'),
+        review_id = review_id,
     )
     if success:
-        return Response({'message':'Review Unliked Successfully'}, status=status.HTTP_200_OK)
-    return Response({'error':'Like not found'}, status = status.HTTP_404_NOT_FOUND)
+        return Response({'message': 'Review unliked successfully'})
+    return Response({'error': 'Like not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ── Recommendations & Discovery ────────────────────────────────────────────
 
 @api_view(['GET'])
 def get_trending(request):
-    cache_key = 'trending_media'
+    cache_key   = 'trending_media'
     cached_data = cache.get(cache_key)
     if cached_data:
         return Response(cached_data)
-    trending= RecommendationService.get_trending_media()
-    cache.set(cache_key, trending, timeout=900)  # Cache for 15 minutes
+    trending = RecommendationService.get_trending_media()
+    cache.set(cache_key, trending, timeout=900)
     return Response(trending)
+
 
 @api_view(['GET'])
 def get_recommendations(request, user_id):
     recommendations = RecommendationService.get_recommendation_for_user(user_id)
     return Response(recommendations)
 
-@api_view(['GET'])
-def get_user_watch_history(request, user_id):
-    limit = request.query_params.get('limit',50)
-    history=WatchHistoryServices.get_watch_history(user_id,int(limit))
-    return Response(history)
 
 @api_view(['GET'])
-def get_similar_media(request,media_id):
-    limit=request.query_params.get('limit', 10)
-    similar=RecommendationService.get_similar_media(media_id,int(limit))
+def get_similar_media(request, media_id):
+    limit   = request.query_params.get('limit', 10)
+    similar = RecommendationService.get_similar_media(media_id, int(limit))
     return Response(similar)
+
+
+# ── TV Shows ───────────────────────────────────────────────────────────────
 
 @api_view(['GET'])
 def get_tv_show_seasons(request, media_id):
     seasons = TVMetadataService.get_all_seasons_for_show(media_id)
     return Response(seasons)
+
 
 @api_view(['GET'])
 def get_season_details(request, season_id):
@@ -317,46 +376,38 @@ def get_season_details(request, season_id):
     except Season.DoesNotExist:
         return Response({"error": "Season not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
 @api_view(['GET'])
 def get_next_episode(request, episode_id):
     try:
-        current_episode= Episode.objects.get(pk=episode_id)
-        next_ep=TVMetadataService.get_next_episode(
-            current_episode.media_id,
-            episode_id
+        current_episode = Episode.objects.get(pk=episode_id)
+        next_ep = TVMetadataService.get_next_episode(
+            current_episode.media_id, episode_id
         )
         if next_ep:
             return Response({
-                "episode_id": next_ep.episode_id,
-                "title": next_ep.title,
-                "season_number": next_ep.season.season_number,
+                "episode_id":     next_ep.episode_id,
+                "title":          next_ep.title,
+                "season_number":  next_ep.season.season_number,
                 "episode_number": next_ep.episode_number,
-
             })
         return Response({'message': 'No next episode found'}, status=status.HTTP_404_NOT_FOUND)
     except Episode.DoesNotExist:
         return Response({"error": "Episode not found"}, status=status.HTTP_404_NOT_FOUND)
 
+
+# ── Platforms ──────────────────────────────────────────────────────────────
+
 @api_view(['GET'])
 def get_media_platforms(request, media_id):
-    region= request.query_params.get('region')
-    platforms=PlatformService.get_platforms_for_media(media_id,region)
+    region    = request.query_params.get('region')
+    platforms = PlatformService.get_platforms_for_media(media_id, region)
     return Response(platforms)
+
 
 @api_view(['GET'])
 def get_platform_content(request, platform_id):
-    region = request.query_params.get('region')
+    region      = request.query_params.get('region')
     media_types = request.query_params.getlist('type')
-    content = PlatformService.get_content_for_platform(platform_id, region, media_types)
+    content     = PlatformService.get_content_for_platform(platform_id, region, media_types)
     return Response(content)
-
-@api_view(['POST'])
-def toggle_watchlist(request):
-    user_id = request.data.get('user_id')
-    media_id = request.data.get('media_id')
-    visibility = request.data.get('visibility', 'private')
-
-    result = WatchListService.toggle_watchlist(user_id, media_id, visibility)
-
-    return Response({"status": result})
-
