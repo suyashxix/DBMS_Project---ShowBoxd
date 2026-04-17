@@ -170,6 +170,7 @@ const styles = `
     border-radius: 12px;
     padding: 28px;
     margin-bottom: 24px;
+    box-shadow: 0 10px 24px rgba(20, 20, 20, 0.04);
   }
   .tv-section-title {
     font-family: 'DM Serif Display', serif;
@@ -177,6 +178,24 @@ const styles = `
     font-weight: 400;
     color: #111;
     margin-bottom: 20px;
+    letter-spacing: 0.2px;
+  }
+  .tv-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .tv-link-inline {
+    color: #b3852d;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: color 0.2s;
+  }
+  .tv-link-inline:hover {
+    color: #8c6421;
   }
 
   /* Season Selector */
@@ -223,10 +242,13 @@ const styles = `
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
+    border-left: 4px solid transparent;
   }
   .tv-episode-card:hover {
     background: #f5f3ef;
     border-color: #c4c0b8;
+    border-left-color: #b3852d;
+    transform: translateY(-1px);
   }
   .tv-episode-num {
     font-size: 20px;
@@ -262,6 +284,10 @@ const styles = `
   }
   .tv-cast-card {
     text-align: center;
+    background: #faf9f7;
+    border: 1px solid #ece8df;
+    border-radius: 10px;
+    padding: 10px;
   }
   .tv-cast-img {
     width: 100%;
@@ -333,6 +359,7 @@ const styles = `
     border: 1px solid #e4e0d8;
     border-radius: 10px;
     padding: 18px 20px;
+    box-shadow: 0 4px 14px rgba(20, 20, 20, 0.03);
   }
   .tv-review-header {
     display: flex;
@@ -383,34 +410,71 @@ const styles = `
   }
 
   /* Similar Shows */
-  .tv-similar-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 20px;
+  .tv-scroll-hint {
+    font-size: 13px;
+    color: #8e8579;
+    margin-top: -8px;
+    margin-bottom: 14px;
+  }
+  .tv-similar-strip {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 2px 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tv-similar-strip::-webkit-scrollbar {
+    height: 8px;
+  }
+  .tv-similar-strip::-webkit-scrollbar-thumb {
+    background: #cbc2b5;
+    border-radius: 999px;
+  }
+  .tv-similar-strip::-webkit-scrollbar-track {
+    background: #ece6dc;
+    border-radius: 999px;
   }
   .tv-similar-card {
     text-decoration: none;
     color: inherit;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex: 0 0 175px;
+    scroll-snap-align: start;
+    background: #faf9f7;
+    border: 1px solid #e8e3d9;
+    border-radius: 12px;
+    padding: 10px;
   }
-  .tv-similar-card:hover { transform: translateY(-4px); }
+  .tv-similar-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 18px rgba(20, 20, 20, 0.08);
+  }
   .tv-similar-poster {
     width: 100%;
     aspect-ratio: 2/3;
     object-fit: cover;
     border-radius: 8px;
     background: #e4e0d8;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
   .tv-similar-title {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     color: #111;
     margin-bottom: 4px;
+    line-height: 1.35;
+    min-height: 38px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .tv-similar-rating {
     font-size: 13px;
-    color: #666;
+    color: #8c6421;
+    font-weight: 600;
   }
 
   .tv-empty {
@@ -496,6 +560,12 @@ const styles = `
     .tv-title { font-size: 32px; }
     .tv-main { padding: 24px 20px; }
     .tv-cast-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .tv-similar-card { flex-basis: 150px; }
+    .tv-section-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
   }
 `;
 
@@ -851,12 +921,12 @@ function TVShowDetail() {
 
           {/* Reviews Section */}
           <div className="tv-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div className="tv-section-head">
               <h2 className="tv-section-title">
                 User Reviews ({reviews?.length || 0})
               </h2>
               {reviews && reviews.length > 4 && (
-                <Link to={`/media/${id}/reviews`} style={{ color: '#d4a853', textDecoration: 'none', fontWeight: '500', fontSize: '14px' }}>
+                <Link to={`/media/${id}/reviews`} className="tv-link-inline">
                   View All Reviews →
                 </Link>
               )}
@@ -942,7 +1012,8 @@ function TVShowDetail() {
           {similarMedia && similarMedia.length > 0 && (
             <div className="tv-section">
               <h2 className="tv-section-title">More Like This</h2>
-              <div className="tv-similar-grid">
+              <p className="tv-scroll-hint">Scroll horizontally to explore similar shows</p>
+              <div className="tv-similar-strip">
                 {similarMedia.map((item) => (
                   <Link
                     key={item.media_id}

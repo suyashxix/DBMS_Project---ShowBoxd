@@ -1,522 +1,341 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from './Authcontext';
+import axios from 'axios';
 
 const API = 'http://127.0.0.1:8000';
 
 const styles = `
-  .modal-overlay {
+  .bm-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.75);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 9999;
     padding: 20px;
-    animation: fadeIn 0.2s ease;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .modal-content {
+  .bm-modal {
     background: #fff;
-    border-radius: 16px;
-    max-width: 600px;
+    border-radius: 12px;
+    max-width: 500px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
-    animation: slideUp 0.3s ease;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    position: relative;
   }
 
-  .modal-header {
-    padding: 24px 28px;
+  .bm-header {
+    padding: 24px 24px 16px;
     border-bottom: 1px solid #e4e0d8;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
   }
 
-  .modal-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 24px;
-    font-weight: 400;
-    color: #111;
-  }
-
-  .modal-close {
-    width: 36px;
-    height: 36px;
+  .bm-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: #f5f3ef;
     border: none;
+    background: #f5f3ef;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #666;
     font-size: 20px;
-    color: #666;
-    transition: all 0.2s;
   }
 
-  .modal-close:hover {
+  .bm-close:hover {
     background: #e4e0d8;
+    color: #000;
+  }
+
+  .bm-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
     color: #111;
+    margin-bottom: 4px;
   }
 
-  .modal-body {
-    padding: 28px;
-  }
-
-  .booking-section {
-    margin-bottom: 24px;
-  }
-
-  .booking-label {
-    font-size: 13px;
-    font-weight: 600;
+  .bm-subtitle {
+    font-size: 14px;
     color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 12px;
   }
 
-  .showtime-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-    padding: 4px;
+  .bm-body {
+    padding: 24px;
   }
 
-  .showtime-card {
-    padding: 16px;
-    background: #faf9f7;
-    border: 2px solid #e4e0d8;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
+  .bm-field {
+    margin-bottom: 20px;
   }
 
-  .showtime-card:hover {
-    background: #f5f3ef;
-    border-color: #d4d0c8;
-  }
-
-  .showtime-card.selected {
-    background: #f0f9f4;
-    border-color: #1a6b3c;
-  }
-
-  .showtime-cinema {
-    font-weight: 600;
-    font-size: 16px;
-    color: #111;
-    margin-bottom: 6px;
-  }
-
-  .showtime-location {
+  .bm-label {
+    display: block;
     font-size: 13px;
-    color: #888;
+    font-weight: 500;
+    color: #111;
     margin-bottom: 8px;
   }
 
-  .showtime-details {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    color: #555;
-  }
-
-  .showtime-time {
-    font-weight: 600;
-    color: #111;
-  }
-
-  .showtime-price {
-    color: #1a6b3c;
-    font-weight: 600;
-  }
-
-  .showtime-seats {
-    color: #888;
-  }
-
-  .seats-selector {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 16px;
-    background: #faf9f7;
-    border-radius: 10px;
-  }
-
-  .seats-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #555;
-  }
-
-  .seats-input {
-    width: 80px;
-    padding: 10px;
-    border: 1.5px solid #d4d0c8;
+  .bm-select,
+  .bm-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #e0ddd6;
     border-radius: 8px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    text-align: center;
+    font-size: 14px;
+    background: #faf9f7;
+    color: #111;
+  }
+
+  .bm-select:focus,
+  .bm-input:focus {
     outline: none;
-    transition: border-color 0.2s;
+    border-color: #1a6b3c;
+    background: #fff;
   }
 
-  .seats-input:focus {
-    border-color: #111;
+  .bm-info {
+    background: #f5f3ef;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 20px;
   }
 
-  .booking-summary {
-    background: linear-gradient(135deg, #f5f3ef 0%, #e8e6e1 100%);
-    border: 1.5px solid #d4d0c8;
-    border-radius: 10px;
-    padding: 20px;
-  }
-
-  .summary-row {
+  .bm-info-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 12px;
-    font-size: 15px;
+    font-size: 14px;
+    margin-bottom: 8px;
   }
 
-  .summary-label {
+  .bm-info-row:last-child {
+    margin-bottom: 0;
+    padding-top: 8px;
+    border-top: 1px solid #e4e0d8;
+    font-weight: 600;
+  }
+
+  .bm-info-label {
     color: #666;
   }
 
-  .summary-value {
-    font-weight: 600;
+  .bm-info-value {
     color: #111;
   }
 
-  .summary-total {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1.5px solid #c4c0b8;
-  }
-
-  .summary-total .summary-label {
-    font-weight: 600;
-    color: #111;
-    font-size: 16px;
-  }
-
-  .summary-total .summary-value {
-    font-size: 20px;
-    color: #1a6b3c;
-  }
-
-  .modal-footer {
-    padding: 20px 28px;
-    border-top: 1px solid #e4e0d8;
+  .bm-actions {
     display: flex;
     gap: 12px;
   }
 
-  .btn-modal {
+  .bm-btn {
     flex: 1;
-    padding: 14px;
-    border-radius: 10px;
+    padding: 12px;
+    border-radius: 8px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-    border: none;
+    transition: opacity 0.2s;
   }
 
-  .btn-modal:hover {
-    transform: translateY(-1px);
-    opacity: 0.9;
+  .bm-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
-  .btn-modal:active {
-    transform: translateY(0);
-  }
-
-  .btn-cancel {
+  .bm-btn-cancel {
     background: #f5f3ef;
+    border: 1px solid #e4e0d8;
     color: #666;
-    border: 1.5px solid #d4d0c8;
   }
 
-  .btn-cancel:hover {
+  .bm-btn-cancel:hover:not(:disabled) {
     background: #e4e0d8;
-    color: #111;
   }
 
-  .btn-confirm {
+  .bm-btn-confirm {
     background: #1a6b3c;
+    border: none;
     color: #fff;
   }
 
-  .btn-confirm:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-    transform: none;
+  .bm-btn-confirm:hover:not(:disabled) {
+    opacity: 0.9;
   }
 
-  .booking-success {
-    text-align: center;
-    padding: 40px 20px;
-  }
-
-  .success-icon {
-    font-size: 64px;
-    margin-bottom: 16px;
-  }
-
-  .success-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 28px;
-    color: #1a6b3c;
-    margin-bottom: 12px;
-  }
-
-  .success-message {
-    font-size: 15px;
-    color: #666;
-    line-height: 1.6;
-  }
-
-  .booking-empty {
+  .bm-empty {
     text-align: center;
     padding: 40px 20px;
     color: #999;
   }
 
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-  }
-
-  @media (max-width: 640px) {
-    .modal-content {
-      border-radius: 12px;
-    }
-    .modal-header {
-      padding: 20px;
-    }
-    .modal-body {
-      padding: 20px;
-    }
-    .modal-footer {
-      padding: 16px 20px;
-      flex-direction: column;
-    }
+  .bm-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
   }
 `;
 
-function BookingModal({ showtimes, mediaId, mediaTitle, onClose }) {
+export default function BookingModal({ mediaId, mediaTitle, onClose }) {
   const { user } = useAuth();
-  const [selectedShowing, setSelectedShowing] = useState(null);
+  const [showtimes, setShowtimes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [selectedShowing, setSelectedShowing] = useState('');
   const [seats, setSeats] = useState(1);
-  const [booking, setBooking] = useState(false);
-  const [bookingComplete, setBookingComplete] = useState(false);
 
-  const handleBooking = async () => {
-    if (!selectedShowing || !user?.user_id) return;
+  useEffect(() => {
+    fetchShowtimes();
+  }, [mediaId]);
 
-    setBooking(true);
+  const fetchShowtimes = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/api/movie/showtimes/${mediaId}/`);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setShowtimes(data);
+
+      if (data.length > 0) {
+        setSelectedShowing(String(data[0].showing_id));
+      }
+    } catch (err) {
+      console.error('Error fetching showtimes:', err);
+      setShowtimes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedShowing || seats < 1) {
+      alert('Please select a showtime and number of seats');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await axios.post(`${API}/api/booking/`, {
         user_id: user.user_id,
-        showing_id: selectedShowing.showing_id,
-        seats_booked: seats,
+        showing_id: parseInt(selectedShowing),
+        seats_booked: parseInt(seats),
       });
 
-      setBookingComplete(true);
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      alert(error.response?.data?.error || 'Failed to create booking');
+      alert('Booking confirmed!');
+      onClose();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Booking failed. Please try again.');
     } finally {
-      setBooking(false);
+      setSubmitting(false);
     }
   };
 
-  const handleClose = () => {
-    if (bookingComplete) {
-      onClose();
-    } else {
-      onClose();
-    }
-  };
-
-  const totalPrice = selectedShowing ? selectedShowing.price * seats : 0;
+  const selectedShow = showtimes.find(s => String(s.showing_id) === String(selectedShowing));
+  const totalPrice = selectedShow ? parseFloat(selectedShow.price) * seats : 0;
 
   return (
     <>
       <style>{styles}</style>
-      <div className="modal-overlay" onClick={handleClose}>
-        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h2 className="modal-title">
-              {bookingComplete ? 'Booking Confirmed' : 'Book Tickets'}
-            </h2>
-            <button className="modal-close" onClick={handleClose}>
-              ×
-            </button>
+      <div className="bm-overlay" onClick={onClose}>
+        <div className="bm-modal" onClick={(e) => e.stopPropagation()}>
+          <button className="bm-close" onClick={onClose}>×</button>
+
+          <div className="bm-header">
+            <h2 className="bm-title">Book Tickets</h2>
+            <p className="bm-subtitle">{mediaTitle}</p>
           </div>
 
-          <div className="modal-body">
-            {bookingComplete ? (
-              <div className="booking-success">
-                <div className="success-icon">🎉</div>
-                <h3 className="success-title">Booking Successful!</h3>
-                <p className="success-message">
-                  Your tickets for <strong>{mediaTitle}</strong> have been
-                  booked. You'll receive a confirmation email shortly.
-                </p>
+          <div className="bm-body">
+            {loading ? (
+              <div className="bm-loading">Loading showtimes...</div>
+            ) : showtimes.length === 0 ? (
+              <div className="bm-empty">
+                No showtimes available for this movie.
               </div>
-            ) : showtimes.length > 0 ? (
+            ) : (
               <>
-                <div className="booking-section">
-                  <div className="booking-label">Select Showtime</div>
-                  <div className="showtime-list">
+                <div className="bm-field">
+                  <label className="bm-label">Select Showtime</label>
+                  <select
+                    className="bm-select"
+                    value={selectedShowing}
+                    onChange={(e) => setSelectedShowing(e.target.value)}
+                  >
                     {showtimes.map((showing) => (
-                      <div
-                        key={showing.showing_id}
-                        className={`showtime-card ${
-                          selectedShowing?.showing_id === showing.showing_id
-                            ? 'selected'
-                            : ''
-                        }`}
-                        onClick={() => setSelectedShowing(showing)}
-                      >
-                        <div className="showtime-cinema">
-                          {showing.cinema_name}
-                        </div>
-                        <div className="showtime-location">
-                          {showing.cinema_location}
-                        </div>
-                        <div className="showtime-details">
-                          <span className="showtime-time">
-                            {showing.show_date} at{' '}
-                            {showing.show_time?.slice(0, 5)}
-                          </span>
-                          <span>•</span>
-                          <span className="showtime-price">
-                            ₹{showing.price}
-                          </span>
-                          <span>•</span>
-                          <span className="showtime-seats">
-                            {showing.available_seats} seats left
-                          </span>
-                        </div>
-                      </div>
+                      <option key={showing.showing_id} value={showing.showing_id}>
+                        {showing.show_date} at {showing.show_time.slice(0, 5)} -
+                        {' '}{showing.cinema_name} ({showing.screen_name}) -
+                        {' '}₹{showing.price} - {showing.available_seats} seats left
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
 
-                {selectedShowing && (
-                  <>
-                    <div className="booking-section">
-                      <div className="booking-label">Number of Seats</div>
-                      <div className="seats-selector">
-                        <span className="seats-label">Seats:</span>
-                        <input
-                          type="number"
-                          min="1"
-                          max={selectedShowing.available_seats}
-                          value={seats}
-                          onChange={(e) => setSeats(Number(e.target.value))}
-                          className="seats-input"
-                        />
-                        <span className="seats-label">
-                          (Max: {selectedShowing.available_seats})
-                        </span>
-                      </div>
-                    </div>
+                <div className="bm-field">
+                  <label className="bm-label">Number of Seats</label>
+                  <input
+                    type="number"
+                    className="bm-input"
+                    min="1"
+                    max={selectedShow?.available_seats || 10}
+                    value={seats}
+                    onChange={(e) => setSeats(Math.max(1, parseInt(e.target.value) || 1))}
+                  />
+                </div>
 
-                    <div className="booking-section">
-                      <div className="booking-label">Booking Summary</div>
-                      <div className="booking-summary">
-                        <div className="summary-row">
-                          <span className="summary-label">Cinema:</span>
-                          <span className="summary-value">
-                            {selectedShowing.cinema_name}
-                          </span>
-                        </div>
-                        <div className="summary-row">
-                          <span className="summary-label">Date & Time:</span>
-                          <span className="summary-value">
-                            {selectedShowing.show_date} at{' '}
-                            {selectedShowing.show_time?.slice(0, 5)}
-                          </span>
-                        </div>
-                        <div className="summary-row">
-                          <span className="summary-label">Seats:</span>
-                          <span className="summary-value">{seats}</span>
-                        </div>
-                        <div className="summary-row">
-                          <span className="summary-label">Price per seat:</span>
-                          <span className="summary-value">
-                            ₹{selectedShowing.price}
-                          </span>
-                        </div>
-                        <div className="summary-row summary-total">
-                          <span className="summary-label">Total:</span>
-                          <span className="summary-value">
-                            ₹{totalPrice.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
+                {selectedShow && (
+                  <div className="bm-info">
+                    <div className="bm-info-row">
+                      <span className="bm-info-label">Cinema</span>
+                      <span className="bm-info-value">{selectedShow.cinema_name}</span>
                     </div>
-                  </>
+                    <div className="bm-info-row">
+                      <span className="bm-info-label">Screen</span>
+                      <span className="bm-info-value">{selectedShow.screen_name} ({selectedShow.screen_type})</span>
+                    </div>
+                    <div className="bm-info-row">
+                      <span className="bm-info-label">Location</span>
+                      <span className="bm-info-value">{selectedShow.cinema_location}</span>
+                    </div>
+                    <div className="bm-info-row">
+                      <span className="bm-info-label">Price per seat</span>
+                      <span className="bm-info-value">₹{selectedShow.price}</span>
+                    </div>
+                    <div className="bm-info-row">
+                      <span className="bm-info-label">Total</span>
+                      <span className="bm-info-value">₹{totalPrice.toFixed(2)}</span>
+                    </div>
+                  </div>
                 )}
+
+                <div className="bm-actions">
+                  <button
+                    className="bm-btn bm-btn-cancel"
+                    onClick={onClose}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="bm-btn bm-btn-confirm"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Booking...' : 'Confirm Booking'}
+                  </button>
+                </div>
               </>
-            ) : (
-              <div className="booking-empty">
-                <div className="empty-icon">🎬</div>
-                <p>No showtimes available for this movie.</p>
-              </div>
             )}
           </div>
-
-          {!bookingComplete && showtimes.length > 0 && (
-            <div className="modal-footer">
-              <button className="btn-modal btn-cancel" onClick={handleClose}>
-                Cancel
-              </button>
-              <button
-                className="btn-modal btn-confirm"
-                onClick={handleBooking}
-                disabled={!selectedShowing || booking}
-              >
-                {booking ? 'Processing...' : 'Confirm Booking'}
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </>
   );
 }
-
-export default BookingModal;

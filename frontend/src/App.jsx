@@ -13,7 +13,8 @@ import AwardWinners from './AwardWinners';
 import NowShowing from './NowShowing';
 import ComingSoon from './ComingSoon';
 import CommunityPicks from './CommunityPicks';
-
+import MoviesPage  from './MoviesPage';
+import TVShowsPage from './TVShowsPage';
 function Layout({ children }) {
     return (
         <>
@@ -26,6 +27,8 @@ function Layout({ children }) {
 function AppRoutes() {
     return (
         <Routes>
+            <Route path="/movies"   element={<MoviesPage />} />
+            <Route path="/tv-shows" element={<TVShowsPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/home" element={<Layout><Home /></Layout>} />
             <Route path="/trending" element={<Layout><Trending /></Layout>} />
