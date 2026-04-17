@@ -18,7 +18,7 @@ TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 DB_CONFIG = {
     "dbname":   "showboxd",
     "user":     "postgres",
-    "password": "skt251271",
+    "password": "1234",
     "host":     "localhost",
     "port":     5432,
 }

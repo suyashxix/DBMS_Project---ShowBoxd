@@ -19,7 +19,7 @@ TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 DB_CONFIG = {
     "dbname":   "showboxd",
     "user":     "postgres",       # change if different
-    "password": "skt251271",  # change if different
+    "password": "1234",  # change if different
     "host":     "localhost",
     "port":     5432,
 }
@@ -75,7 +75,7 @@ def main():
             skipped += 1
 
         # Be polite to the API — 4 requests/second max on free tier
-        time.sleep(0.26)
+        time.sleep(0.7)
 
     conn.commit()
     cur.close()

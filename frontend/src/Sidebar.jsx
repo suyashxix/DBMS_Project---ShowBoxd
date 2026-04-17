@@ -187,8 +187,8 @@ export default function Sidebar({ open, onClose }) {
             <button className="sb-item" style={{animationDelay:'0.05s'}} onClick={() => go('/movies')}>All Movies</button>
             <button className="sb-item" style={{animationDelay:'0.08s'}} onClick={() => go('/home?top_rated=true&type=movie')}>Top Rated</button>
             <button className="sb-item" style={{animationDelay:'0.11s'}} onClick={() => go('/trending')}>Trending Now</button>
-            <button className="sb-item" style={{animationDelay:'0.14s'}} onClick={() => go('/nowshowing')}>Now Showing</button>
-            <button className="sb-item" style={{animationDelay:'0.17s'}} onClick={() => go('/community-picks')}>Community Picks</button>
+            <button className="sb-item" style={{animationDelay:'0.14s'}} onClick={() => go('/now-showing')}>Now Showing</button>
+            <button className="sb-item" style={{animationDelay:'0.17s'}} onClick={() => go('/community')}>Community Picks</button>
           </div>
 
           {/* TV Shows */}
@@ -199,7 +199,7 @@ export default function Sidebar({ open, onClose }) {
             </div>
             <button className="sb-item" style={{animationDelay:'0.05s'}} onClick={() => go('/tv-shows')}>All TV Shows</button>
             <button className="sb-item" style={{animationDelay:'0.08s'}} onClick={() => go('/home?top_rated=true&type=tv_show')}>Top Rated Shows</button>
-            <button className="sb-item" style={{animationDelay:'0.11s'}} onClick={() => go('/home?type=tv_show')}>Currently Airing</button>
+            <button className="sb-item" style={{animationDelay:'0.11s'}} onClick={() => go('/currently-airing')}>Currently Airing</button>
           </div>
 
           {/* Browse by Genre */}
